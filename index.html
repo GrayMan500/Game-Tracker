@@ -7,715 +7,268 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" onload="window._XLSX=XLSX"></script>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&display=swap');
+:root {
+  --bg:#0f0f0f; --surface:#1a1a1a; --surface2:#242424; --border:#2e2e2e;
+  --accent:#6fdfb0; --text:#f0ede8; --muted:#888;
+  --danger:#e05050; --warn:#e09030; --checked-out:#e09030;
+  --shelf:#a78bfa;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;}
+.view{display:none;} .view.active{display:block;}
 
-  :root {
-    --bg: #0f0f0f;
-    --surface: #1a1a1a;
-    --surface2: #242424;
-    --border: #2e2e2e;
-    --accent: #6fdfb0;
-    --accent2: #3bbf8a;
-    --text: #f0ede8;
-    --muted: #888;
-    --danger: #e05050;
-    --warn: #e09030;
-    --checked-out: #e09030;
-  }
+/* LOADING */
+#loading-overlay{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:999;}
+#loading-overlay h1{font-family:'Bebas Neue',sans-serif;font-size:3rem;color:var(--accent);letter-spacing:0.06em;}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-msg{font-size:0.75rem;color:var(--muted);letter-spacing:0.1em;}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+/* HEADER */
+header{padding:20px 24px 0;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.header-top{display:flex;align-items:center;gap:12px;flex:1;min-width:0;}
+header h1{font-family:'Bebas Neue',sans-serif;font-size:3rem;letter-spacing:0.06em;color:var(--accent);line-height:1;white-space:nowrap;}
+header .subtitle{font-size:0.7rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;flex:1;}
+.header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'DM Mono', monospace;
-    min-height: 100vh;
-  }
+/* BUTTONS */
+button{background:var(--accent);color:#0f0f0f;border:none;border-radius:4px;padding:10px 16px;font-family:'DM Mono',monospace;font-size:0.8rem;font-weight:500;cursor:pointer;letter-spacing:0.05em;transition:background 0.15s,transform 0.1s;white-space:nowrap;}
+button:hover{background:#8fefca;} button:active{transform:scale(0.97);}
+button.danger{background:var(--danger);color:#fff;} button.danger:hover{background:#f06060;}
+button.warn{background:var(--warn);color:#fff;} button.warn:hover{background:#f0a040;}
+button.ghost{background:transparent;border:1px solid var(--border);color:var(--muted);}
+button.ghost:hover{border-color:var(--accent);color:var(--accent);background:transparent;}
+button:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
 
-  .view { display: none; }
-  .view.active { display: block; }
+/* INPUTS */
+input,select,textarea{background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:10px 14px;color:var(--text);font-family:'DM Mono',monospace;font-size:0.85rem;outline:none;transition:border-color 0.15s;width:100%;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+input::placeholder,textarea::placeholder{color:var(--muted);}
+select option{background:var(--surface);color:var(--text);}
+.field-group{display:flex;flex-direction:column;gap:4px;}
+.field-label{font-size:0.65rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;}
 
-  /* ── LOADING OVERLAY ── */
-  #loading-overlay {
-    position: fixed;
-    inset: 0;
-    background: var(--bg);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    z-index: 999;
-  }
-  #loading-overlay h1 {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 3rem;
-    color: var(--accent);
-    letter-spacing: 0.06em;
-  }
-  .spinner {
-    width: 32px; height: 32px;
-    border: 3px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-msg { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.1em; }
+/* SYNC */
+.sync-badge{font-size:0.65rem;letter-spacing:0.08em;padding:3px 8px;border-radius:20px;border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;gap:5px;white-space:nowrap;}
+.sync-badge.syncing{color:var(--accent);border-color:var(--accent);}
+.sync-badge.synced{color:#5c5;border-color:#5c5;}
+.sync-badge.error{color:var(--danger);border-color:var(--danger);}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.sync-dot.pulse{animation:pulse 1s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
 
-  /* ── HEADER ── */
-  header {
-    padding: 20px 24px 0;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .header-top {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex: 1;
-    min-width: 0;
-  }
-  header h1 {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 3rem;
-    letter-spacing: 0.06em;
-    color: var(--accent);
-    line-height: 1;
-    white-space: nowrap;
-  }
-  header .subtitle {
-    font-size: 0.7rem;
-    color: var(--muted);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    flex: 1;
-  }
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-  }
+/* OVERVIEW */
+.overview{padding:16px 24px 0;margin-bottom:20px;}
+.overview-title{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--text);letter-spacing:0.08em;margin-bottom:10px;}
+.overview-panel{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px 20px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;}
+.stat-item{padding:8px 16px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:3px;align-items:flex-start;min-width:0;overflow:hidden;}
+.stat-item.row-first{padding-left:0;} .stat-item.row-last{border-right:none;padding-right:0;}
+.stat-divider{grid-column:1/-1;height:1px;background:var(--border);margin:8px 0;}
+.stat-item.row2{padding-top:0;}
+.stat-label{font-size:0.6rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;}
+.stat-value{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--accent);letter-spacing:0.04em;line-height:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block;width:100%;}
+.stat-sub{font-size:0.62rem;color:var(--muted);}
 
-  /* ── BUTTONS ── */
-  button {
-    background: var(--accent);
-    color: #0f0f0f;
-    border: none;
-    border-radius: 4px;
-    padding: 10px 16px;
-    font-family: 'DM Mono', monospace;
-    font-size: 0.8rem;
-    font-weight: 500;
-    cursor: pointer;
-    letter-spacing: 0.05em;
-    transition: background 0.15s, transform 0.1s;
-    white-space: nowrap;
-  }
-  button:hover { background: #8fefca; }
-  button:active { transform: scale(0.97); }
-  button.danger { background: var(--danger); color: #fff; }
-  button.danger:hover { background: #f06060; }
-  button.warn { background: var(--warn); color: #fff; }
-  button.warn:hover { background: #f0a040; }
-  button.ghost {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--muted);
-  }
-  button.ghost:hover { border-color: var(--accent); color: var(--accent); background: transparent; }
-  button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+/* NAV TABS */
+.nav-tabs{display:flex;padding:0 24px;border-bottom:1px solid var(--border);}
+.nav-tab{padding:10px 18px;font-size:0.75rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s;user-select:none;white-space:nowrap;}
+.nav-tab:hover{color:var(--text);}
+.nav-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.tab-badge{display:inline-block;background:var(--checked-out);color:#0f0f0f;border-radius:10px;padding:0 5px;font-size:0.6rem;margin-left:5px;vertical-align:middle;}
 
-  /* ── INPUTS ── */
-  input, select, textarea {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 10px 14px;
-    color: var(--text);
-    font-family: 'DM Mono', monospace;
-    font-size: 0.85rem;
-    outline: none;
-    transition: border-color 0.15s;
-    width: 100%;
-  }
-  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
-  input::placeholder, textarea::placeholder { color: var(--muted); }
-  select option { background: var(--surface); color: var(--text); }
+/* STORAGE SECTIONS */
+.storage-section{padding:0 24px;}
+.storage-section-header{display:flex;align-items:center;justify-content:space-between;padding:14px 0 10px;border-top:1px solid var(--border);gap:12px;flex-wrap:wrap;}
+.storage-section-header:first-of-type{border-top:none;}
+.storage-section-title{font-family:'Bebas Neue',sans-serif;font-size:1.3rem;color:var(--text);letter-spacing:0.08em;display:flex;align-items:center;gap:8px;}
+.section-count{font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--muted);font-weight:400;letter-spacing:0.06em;}
+.storage-section-add{display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap;}
+.storage-section-add input{width:180px;padding:7px 12px;font-size:0.8rem;}
+.storage-section-add select{width:auto;padding:7px 10px;font-size:0.75rem;}
+.storage-section-add button{padding:7px 12px;font-size:0.75rem;}
+.storage-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;padding-bottom:28px;}
 
-  .field-group { display: flex; flex-direction: column; gap: 4px; }
-  .field-label { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
+/* BIN CARDS */
+.bin-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden;cursor:pointer;transition:border-color 0.15s,transform 0.15s;display:flex;flex-direction:column;}
+.bin-card:hover{border-color:var(--accent);transform:translateY(-2px);}
+.bin-card-top{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--border);}
+.bin-card-top .bin-label{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;color:var(--accent);letter-spacing:0.05em;}
+.bin-card-top .bin-count{font-size:0.7rem;color:var(--muted);letter-spacing:0.08em;}
+.bin-card-body{padding:12px 16px;min-height:52px;flex:1;}
+.bin-preview-item{font-size:0.75rem;color:var(--muted);padding:2px 0;display:flex;justify-content:space-between;gap:8px;align-items:center;}
+.bin-preview-item .item-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bin-card-footer{padding:10px 16px;display:flex;justify-content:space-between;align-items:center;background:var(--surface2);gap:8px;}
+.bin-footer-info{font-size:0.75rem;letter-spacing:0.05em;flex:1;}
+.bin-footer-info .co-count{color:var(--checked-out);}
+.bin-actions{display:flex;gap:6px;flex-shrink:0;}
+.bin-actions button{padding:5px 10px;font-size:0.7rem;}
+.bin-number{font-family:'Bebas Neue',sans-serif;font-size:0.85rem;color:#0f0f0f;background:var(--accent);border-radius:3px;padding:1px 7px;letter-spacing:0.05em;flex-shrink:0;}
 
-  /* ── SYNC STATUS ── */
-  .sync-badge {
-    font-size: 0.65rem;
-    letter-spacing: 0.08em;
-    padding: 3px 8px;
-    border-radius: 20px;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    white-space: nowrap;
-  }
-  .sync-badge.syncing { color: var(--accent); border-color: var(--accent); }
-  .sync-badge.synced  { color: #5c5; border-color: #5c5; }
-  .sync-badge.error   { color: var(--danger); border-color: var(--danger); }
-  .sync-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-  .sync-dot.pulse { animation: pulse 1s ease-in-out infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+/* SHELF CARD VARIANT */
+.shelf-card .bin-card-top .bin-label{color:var(--shelf);}
+.shelf-card:hover{border-color:var(--shelf);}
+.shelf-card .bin-number{background:var(--shelf);}
+.shelf-type-badge{font-size:0.6rem;letter-spacing:0.08em;text-transform:uppercase;color:var(--shelf);border:1px solid var(--shelf);border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:middle;display:inline-block;}
 
-  /* ── OVERVIEW ── */
-  .overview { padding: 16px 24px 0; margin-bottom: 20px; }
-  .overview-title {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 1.6rem;
-    color: var(--text);
-    letter-spacing: 0.08em;
-    margin-bottom: 10px;
-  }
-  .overview-panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px 20px;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0;
-  }
-  .stat-item {
-    padding: 8px 16px;
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    align-items: flex-start;
-    text-align: left;
-    min-width: 0;
-    overflow: hidden;
-  }
-  .stat-item.row-first { padding-left: 0; }
-  .stat-item.row-last  { border-right: none; padding-right: 0; }
-  .stat-divider { grid-column: 1 / -1; height: 1px; background: var(--border); margin: 8px 0; }
-  .stat-item.row2 { padding-top: 0; }
-  .stat-label { font-size: 0.6rem; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; }
-  .stat-value {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 1.4rem;
-    color: var(--accent);
-    letter-spacing: 0.04em;
-    line-height: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: block;
-    width: 100%;
-  }
-  .stat-sub { font-size: 0.62rem; color: var(--muted); }
+/* STATUS BADGES */
+.co-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(224,144,48,0.15);border:1px solid var(--checked-out);border-radius:3px;padding:1px 6px;font-size:0.65rem;color:var(--checked-out);letter-spacing:0.04em;white-space:nowrap;}
+.in-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(111,223,176,0.12);border:1px solid var(--accent);border-radius:3px;padding:1px 6px;font-size:0.65rem;color:var(--accent);letter-spacing:0.04em;white-space:nowrap;}
 
-  /* ── SECTION TITLES ── */
-  .section-title-bar { padding: 0 24px 8px; }
-  .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; color: var(--text); letter-spacing: 0.08em; }
+/* DETAIL VIEW */
+.detail-header{padding:20px 24px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);flex-wrap:wrap;}
+.detail-header h2{font-family:'Bebas Neue',sans-serif;font-size:2.5rem;color:var(--accent);letter-spacing:0.06em;flex:1;min-width:120px;}
+.detail-bin-number{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;color:var(--muted);letter-spacing:0.05em;align-self:flex-end;padding-bottom:6px;}
+.detail-body{padding:20px 24px;}
 
-  /* ── SEARCH ── */
-  .search-bar { display: flex; gap: 8px; padding: 16px 24px 10px; align-items: center; }
-  .search-bar input { flex: 1; }
-  .search-count { font-size: 0.7rem; color: var(--muted); white-space: nowrap; letter-spacing: 0.05em; }
+/* ADD GAME FORM */
+.add-item-form{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:24px;}
+.add-item-form-title{font-size:0.65rem;color:var(--muted);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:12px;}
+.add-item-grid{display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;align-items:end;margin-bottom:8px;}
+.add-item-grid2{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;align-items:end;margin-bottom:8px;}
+.add-item-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;}
 
-  .search-results { padding: 0 24px 40px; display: flex; flex-direction: column; gap: 8px; }
-  .search-result-row {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 12px 16px;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 4px 16px;
-    align-items: center;
-    cursor: pointer;
-    transition: border-color 0.15s, transform 0.12s;
-  }
-  .search-result-row:hover { border-color: var(--accent); transform: translateX(3px); }
-  .search-result-name { font-size: 0.88rem; color: var(--text); }
-  .search-result-name mark { background: none; color: var(--accent); font-weight: 600; }
-  .search-result-meta { font-size: 0.72rem; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; }
-  .search-result-bin { font-family: 'Bebas Neue', sans-serif; font-size: 1rem; color: var(--accent); letter-spacing: 0.05em; text-align: right; white-space: nowrap; }
-  .search-result-status { font-size: 0.72rem; text-align: right; }
-  .search-empty { text-align: center; padding: 32px; color: var(--muted); font-size: 0.82rem; }
+/* GAMES TABLE */
+.table-wrap{overflow-x:auto;margin-bottom:0;}
+.items-table{width:100%;border-collapse:collapse;font-size:0.8rem;min-width:620px;}
+.items-table th{text-align:left;font-size:0.62rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;}
+.items-table td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.items-table tr:last-child td{border-bottom:none;}
+.items-table tr.is-checked-out{opacity:0.65;}
+.items-table tr.is-checked-out td:first-child{text-decoration:line-through;text-decoration-color:var(--checked-out);}
+.del-btn{background:none!important;border:none!important;color:var(--muted)!important;cursor:pointer;font-size:1rem;padding:2px 6px;border-radius:3px;transition:color 0.15s!important;}
+.del-btn:hover{color:var(--danger)!important;background:none!important;transform:none!important;}
+.checkout-btn{background:none!important;border:1px solid var(--border)!important;color:var(--muted)!important;cursor:pointer;font-size:0.65rem;padding:3px 8px;border-radius:3px;font-family:'DM Mono',monospace;letter-spacing:0.04em;transition:all 0.15s!important;white-space:nowrap;}
+.checkout-btn:hover{border-color:var(--warn)!important;color:var(--warn)!important;transform:none!important;}
+.checkin-btn{background:none!important;border:1px solid var(--checked-out)!important;color:var(--checked-out)!important;cursor:pointer;font-size:0.65rem;padding:3px 8px;border-radius:3px;font-family:'DM Mono',monospace;letter-spacing:0.04em;transition:all 0.15s!important;white-space:nowrap;}
+.checkin-btn:hover{border-color:var(--accent)!important;color:var(--accent)!important;transform:none!important;}
+.move-btn{background:none!important;border:1px solid var(--border)!important;color:var(--muted)!important;cursor:pointer;font-size:0.65rem;padding:3px 8px;border-radius:3px;font-family:'DM Mono',monospace;letter-spacing:0.04em;transition:all 0.15s!important;white-space:nowrap;}
+.move-btn:hover{border-color:var(--shelf)!important;color:var(--shelf)!important;transform:none!important;}
+.editable-cell{cursor:pointer;border-radius:3px;padding:2px 5px;margin:-2px -5px;transition:background 0.15s;display:inline-block;}
+.editable-cell:hover{background:var(--surface2);}
+.editable-cell::after{content:" ✎";font-size:0.6rem;color:var(--border);vertical-align:super;}
+.editable-cell:hover::after{color:var(--accent);}
+.cond-badge{display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:1px 6px;font-size:0.68rem;color:var(--muted);}
+.cond-badge.mint{border-color:#6fdfb0;color:#6fdfb0;} .cond-badge.good{border-color:#7abfff;color:#7abfff;}
+.cond-badge.fair{border-color:#e0c040;color:#e0c040;} .cond-badge.poor{border-color:var(--danger);color:var(--danger);}
 
-  /* ── MAIN VIEW ── */
-  .add-bin-bar { display: flex; gap: 8px; padding: 14px 24px; }
-  .add-bin-bar input { flex: 1; }
+/* GAMES TAB */
+.games-tab-bar{display:flex;align-items:center;gap:12px;padding:14px 24px 10px;flex-wrap:wrap;}
+.games-tab-bar input{flex:1;min-width:160px;}
+.sort-controls{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.sort-controls select{width:auto;padding:7px 10px;font-size:0.78rem;}
+.sort-btn{padding:7px 10px;font-size:0.75rem;}
+.games-flat-table{padding:0 24px 40px;}
+.games-flat-table .items-table{min-width:700px;}
+.games-flat-table .items-table th.sortable{cursor:pointer;user-select:none;}
+.games-flat-table .items-table th.sortable:hover{color:var(--accent);}
+.games-flat-table .items-table th .sort-arrow{margin-left:4px;opacity:0.4;}
+.games-flat-table .items-table th.sort-active{color:var(--accent);}
+.games-flat-table .items-table th.sort-active .sort-arrow{opacity:1;}
+.location-chip{font-size:0.68rem;display:inline-flex;align-items:center;gap:3px;background:var(--surface2);border:1px solid var(--border);border-radius:3px;padding:1px 6px;color:var(--muted);white-space:nowrap;}
+.location-chip.is-shelf{border-color:var(--shelf);color:var(--shelf);}
 
-  .bins-grid {
-    padding: 0 24px 40px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
-  }
+/* CHECKED OUT VIEW */
+.co-list{padding:0 24px 40px;display:flex;flex-direction:column;gap:8px;}
+.co-row{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:4px 16px;align-items:center;}
+.co-row-name{font-size:0.9rem;color:var(--text);font-weight:500;}
+.co-row-meta{font-size:0.72rem;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;margin-top:2px;}
+.co-row-bin{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--accent);letter-spacing:0.05em;text-align:right;}
+.co-row-actions{display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
+.co-empty{text-align:center;padding:48px 24px;color:var(--muted);font-size:0.82rem;}
+.co-empty .icon{font-size:3rem;margin-bottom:12px;}
 
-  .bin-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-    cursor: pointer;
-    transition: border-color 0.15s, transform 0.15s;
-    display: flex;
-    flex-direction: column;
-  }
-  .bin-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+/* SEARCH */
+.search-bar{display:flex;gap:8px;padding:16px 24px 10px;align-items:center;}
+.search-bar input{flex:1;}
+.search-count{font-size:0.7rem;color:var(--muted);white-space:nowrap;letter-spacing:0.05em;}
+.search-results{padding:0 24px 40px;display:flex;flex-direction:column;gap:8px;}
+.search-result-row{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 16px;display:grid;grid-template-columns:1fr auto;gap:4px 16px;align-items:center;cursor:pointer;transition:border-color 0.15s,transform 0.12s;}
+.search-result-row:hover{border-color:var(--accent);transform:translateX(3px);}
+.search-result-name{font-size:0.88rem;color:var(--text);}
+.search-result-name mark{background:none;color:var(--accent);font-weight:600;}
+.search-result-meta{font-size:0.72rem;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;}
+.search-result-bin{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:var(--accent);letter-spacing:0.05em;text-align:right;white-space:nowrap;}
+.search-empty{text-align:center;padding:32px;color:var(--muted);font-size:0.82rem;}
 
-  .bin-card-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px;
-    border-bottom: 1px solid var(--border);
-  }
-  .bin-card-top .bin-label { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; color: var(--accent); letter-spacing: 0.05em; }
-  .bin-card-top .bin-count { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.08em; }
+/* QR */
+.qr-section{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;display:flex;flex-direction:column;align-items:center;gap:12px;}
+.qr-title{font-size:0.65rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);}
+.qr-hint{font-size:0.7rem;color:var(--muted);text-align:center;max-width:280px;line-height:1.5;}
+.qr-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
 
-  .bin-card-body { padding: 12px 16px; min-height: 52px; flex: 1; }
-  .bin-preview-item {
-    font-size: 0.75rem;
-    color: var(--muted);
-    padding: 2px 0;
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    align-items: center;
-  }
-  .bin-preview-item .item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* SCAN VIEW */
+#scan-view{padding:24px;max-width:480px;margin:0 auto;}
+#scan-view h2{font-family:'Bebas Neue',sans-serif;font-size:2.8rem;color:var(--accent);margin-bottom:4px;letter-spacing:0.05em;}
+.scan-meta{font-size:0.7rem;color:var(--muted);margin-bottom:20px;letter-spacing:0.08em;}
+.scan-item{padding:12px 0;border-bottom:1px solid var(--border);font-size:0.88rem;display:grid;grid-template-columns:1fr auto;gap:3px 12px;align-items:start;}
+.scan-item.co{opacity:0.6;}
+.scan-item .name{color:var(--text);font-weight:500;}
+.scan-item .meta{font-size:0.72rem;color:var(--muted);grid-column:1;}
+.scan-item .status-col{grid-row:1/3;grid-column:2;display:flex;align-items:center;}
+.empty-state{text-align:center;padding:48px 24px;color:var(--muted);}
+.empty-state .icon{font-size:3rem;margin-bottom:12px;}
+.empty-state p{font-size:0.82rem;line-height:1.6;}
 
-  .bin-card-footer {
-    padding: 10px 16px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: var(--surface2);
-    gap: 8px;
-  }
-  .bin-footer-info { font-size: 0.75rem; letter-spacing: 0.05em; flex: 1; }
-  .bin-footer-info .co-count { color: var(--checked-out); }
-  .bin-actions { display: flex; gap: 6px; flex-shrink: 0; }
-  .bin-actions button { padding: 5px 10px; font-size: 0.7rem; }
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:24px;width:340px;max-width:90vw;display:flex;flex-direction:column;gap:12px;}
+.modal h3{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--accent);letter-spacing:0.06em;}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:4px;}
 
-  /* ── STORAGE SECTION ── */
-  .storage-section { padding: 0 24px; }
-  .storage-section-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 0 10px;
-    border-top: 1px solid var(--border);
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .storage-section-title {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 1.3rem;
-    color: var(--text);
-    letter-spacing: 0.08em;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .storage-section-title .section-count {
-    font-family: 'DM Mono', monospace;
-    font-size: 0.65rem;
-    color: var(--muted);
-    font-weight: 400;
-    letter-spacing: 0.06em;
-  }
-  .storage-section-add {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-  }
-  .storage-section-add input { width: 180px; padding: 7px 12px; font-size: 0.8rem; }
-  .storage-section-add select { width: auto; padding: 7px 10px; font-size: 0.75rem; }
-  .storage-section-add button { padding: 7px 12px; font-size: 0.75rem; }
-  .storage-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
-    padding-bottom: 28px;
-  }
-  .shelf-card .bin-card-top .bin-label { color: #a78bfa; }
-  .shelf-card:hover { border-color: #a78bfa; }
-  .shelf-card .bin-number { background: #a78bfa; color: #0f0f0f; }
-  .shelf-type-badge {
-    font-size: 0.6rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #a78bfa;
-    border: 1px solid #a78bfa;
-    border-radius: 3px;
-    padding: 1px 5px;
-    margin-left: 4px;
-    vertical-align: middle;
-    display: inline-block;
-  }
+/* QR SIZE */
+.size-option{display:flex;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:border-color 0.15s,background 0.15s;}
+.size-option:hover{border-color:var(--accent);}
+.size-option.selected{border-color:var(--accent);background:rgba(111,223,176,0.06);}
+.size-option input[type=radio]{accent-color:var(--accent);flex-shrink:0;width:16px;height:16px;margin:0;}
+.size-option-label{font-size:0.88rem;font-weight:500;color:var(--text);}
+.size-option-dim{font-size:0.75rem;color:var(--muted);}
+.size-option-count{font-size:0.72rem;color:var(--muted);margin-top:2px;}
 
-  /* ── CHECKED OUT BADGE ── */
-  .co-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: rgba(224,144,48,0.15);
-    border: 1px solid var(--checked-out);
-    border-radius: 3px;
-    padding: 1px 6px;
-    font-size: 0.65rem;
-    color: var(--checked-out);
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-  }
-  .in-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    background: rgba(111,223,176,0.12);
-    border: 1px solid var(--accent);
-    border-radius: 3px;
-    padding: 1px 6px;
-    font-size: 0.65rem;
-    color: var(--accent);
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-  }
+/* TRASH */
+.trash-item{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:12px 16px;display:flex;align-items:center;gap:12px;}
+.trash-item-info{flex:1;min-width:0;}
+.trash-item-name{font-size:0.85rem;color:var(--text);}
+.trash-item-meta{font-size:0.7rem;color:var(--muted);margin-top:2px;}
+.trash-empty{text-align:center;padding:32px;color:var(--muted);font-size:0.82rem;}
 
-  /* ── DETAIL VIEW ── */
-  .detail-header {
-    padding: 20px 24px 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    border-bottom: 1px solid var(--border);
-    flex-wrap: wrap;
-  }
-  .detail-header h2 {
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 2.5rem;
-    color: var(--accent);
-    letter-spacing: 0.06em;
-    flex: 1;
-    min-width: 120px;
-  }
-  .detail-body { padding: 20px 24px; }
+/* DUP WARNING */
+.dup-warning{background:#1a2a1a;border:1px solid var(--accent);border-radius:4px;padding:8px 12px;font-size:0.75rem;color:var(--accent);line-height:1.5;margin-bottom:8px;display:none;}
+.dup-warning.visible{display:block;}
 
-  /* ── ADD GAME FORM ── */
-  .add-item-form {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
-    margin-bottom: 24px;
-  }
-  .add-item-form-title { font-size: 0.65rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 12px; }
-  .add-item-grid {
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr;
-    gap: 8px;
-    align-items: end;
-    margin-bottom: 8px;
-  }
-  .add-item-grid2 {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 8px;
-    align-items: end;
-    margin-bottom: 8px;
-  }
-  .add-item-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-top: 4px;
-  }
-
-  /* ── GAMES TABLE ── */
-  .table-wrap { overflow-x: auto; margin-bottom: 0; }
-  .items-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.8rem;
-    min-width: 620px;
-  }
-  .items-table th {
-    text-align: left;
-    font-size: 0.62rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    padding: 8px 10px;
-    border-bottom: 1px solid var(--border);
-    white-space: nowrap;
-  }
-  .items-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-  .items-table tr:last-child td { border-bottom: none; }
-  .items-table tr.is-checked-out { opacity: 0.65; }
-  .items-table tr.is-checked-out td:first-child { text-decoration: line-through; text-decoration-color: var(--checked-out); }
-
-  .del-btn {
-    background: none !important;
-    border: none !important;
-    color: var(--muted) !important;
-    cursor: pointer;
-    font-size: 1rem;
-    padding: 2px 6px;
-    border-radius: 3px;
-    transition: color 0.15s !important;
-  }
-  .del-btn:hover { color: var(--danger) !important; background: none !important; transform: none !important; }
-
-  .checkout-btn {
-    background: none !important;
-    border: 1px solid var(--border) !important;
-    color: var(--muted) !important;
-    cursor: pointer;
-    font-size: 0.65rem;
-    padding: 3px 8px;
-    border-radius: 3px;
-    font-family: 'DM Mono', monospace;
-    letter-spacing: 0.04em;
-    transition: all 0.15s !important;
-    white-space: nowrap;
-  }
-  .checkout-btn:hover { border-color: var(--warn) !important; color: var(--warn) !important; transform: none !important; }
-  .checkin-btn {
-    background: none !important;
-    border: 1px solid var(--checked-out) !important;
-    color: var(--checked-out) !important;
-    cursor: pointer;
-    font-size: 0.65rem;
-    padding: 3px 8px;
-    border-radius: 3px;
-    font-family: 'DM Mono', monospace;
-    letter-spacing: 0.04em;
-    transition: all 0.15s !important;
-    white-space: nowrap;
-  }
-  .checkin-btn:hover { border-color: var(--accent) !important; color: var(--accent) !important; transform: none !important; }
-
-  .editable-cell {
-    cursor: pointer;
-    border-radius: 3px;
-    padding: 2px 5px;
-    margin: -2px -5px;
-    transition: background 0.15s;
-    display: inline-block;
-  }
-  .editable-cell:hover { background: var(--surface2); }
-  .editable-cell::after { content: " ✎"; font-size: 0.6rem; color: var(--border); vertical-align: super; }
-  .editable-cell:hover::after { color: var(--accent); }
-
-  /* ── CONDITION BADGE ── */
-  .cond-badge {
-    display: inline-block;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 3px;
-    padding: 1px 6px;
-    font-size: 0.68rem;
-    color: var(--muted);
-  }
-  .cond-badge.mint  { border-color: #6fdfb0; color: #6fdfb0; }
-  .cond-badge.good  { border-color: #7abfff; color: #7abfff; }
-  .cond-badge.fair  { border-color: #e0c040; color: #e0c040; }
-  .cond-badge.poor  { border-color: var(--danger); color: var(--danger); }
-
-  /* ── QR SECTION ── */
-  .qr-section {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-  }
-  .qr-title { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
-  #qr-code canvas, #qr-code img { border-radius: 4px; }
-  .qr-hint { font-size: 0.7rem; color: var(--muted); text-align: center; max-width: 280px; line-height: 1.5; }
-  .qr-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
-
-  /* ── CHECKED OUT VIEW ── */
-  #checked-out-view { padding: 0; }
-  .co-list { padding: 0 24px 40px; display: flex; flex-direction: column; gap: 8px; }
-  .co-row {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 14px 16px;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 4px 16px;
-    align-items: center;
-  }
-  .co-row-name { font-size: 0.9rem; color: var(--text); font-weight: 500; }
-  .co-row-meta { font-size: 0.72rem; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
-  .co-row-bin { font-family: 'Bebas Neue', sans-serif; font-size: 1rem; color: var(--accent); letter-spacing: 0.05em; text-align: right; }
-  .co-row-by { font-size: 0.72rem; color: var(--checked-out); text-align: right; margin-top: 2px; }
-  .co-row-actions { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
-  .co-empty { text-align: center; padding: 48px 24px; color: var(--muted); font-size: 0.82rem; }
-  .co-empty .icon { font-size: 3rem; margin-bottom: 12px; }
-
-  /* ── MODAL ── */
-  .modal-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.7);
-    z-index: 100;
-    align-items: center;
-    justify-content: center;
-  }
-  .modal-overlay.open { display: flex; }
-  .modal {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 24px;
-    width: 340px;
-    max-width: 90vw;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  .modal h3 { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; color: var(--accent); letter-spacing: 0.06em; }
-  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
-
-  /* ── SCAN VIEW ── */
-  #scan-view { padding: 24px; max-width: 480px; margin: 0 auto; }
-  #scan-view h2 { font-family: 'Bebas Neue', sans-serif; font-size: 2.8rem; color: var(--accent); margin-bottom: 4px; letter-spacing: 0.05em; }
-  .scan-meta { font-size: 0.7rem; color: var(--muted); margin-bottom: 20px; letter-spacing: 0.08em; }
-  .scan-item {
-    padding: 12px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 0.88rem;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 3px 12px;
-    align-items: start;
-  }
-  .scan-item.co { opacity: 0.6; }
-  .scan-item .name { color: var(--text); font-weight: 500; }
-  .scan-item .meta { font-size: 0.72rem; color: var(--muted); grid-column: 1; }
-  .scan-item .status-col { grid-row: 1 / 3; grid-column: 2; display: flex; align-items: center; }
-
-  .empty-state { text-align: center; padding: 48px 24px; color: var(--muted); }
-  .empty-state .icon { font-size: 3rem; margin-bottom: 12px; }
-  .empty-state p { font-size: 0.82rem; line-height: 1.6; }
-
-  /* ── NAV TABS ── */
-  .nav-tabs {
-    display: flex;
-    gap: 0;
-    padding: 0 24px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 0;
-  }
-  .nav-tab {
-    padding: 10px 18px;
-    font-size: 0.75rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--muted);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: color 0.15s, border-color 0.15s;
-    user-select: none;
-    white-space: nowrap;
-  }
-  .nav-tab:hover { color: var(--text); }
-  .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-  .nav-tab .tab-badge {
-    display: inline-block;
-    background: var(--checked-out);
-    color: #0f0f0f;
-    border-radius: 10px;
-    padding: 0 5px;
-    font-size: 0.6rem;
-    margin-left: 5px;
-    vertical-align: middle;
-  }
-
-  /* ── BIN NUMBER ── */
-  .bin-number { font-family: 'Bebas Neue', sans-serif; font-size: 0.85rem; color: #0f0f0f; background: var(--accent); border-radius: 3px; padding: 1px 7px; letter-spacing: 0.05em; flex-shrink: 0; }
-  .detail-bin-number { font-family: 'Bebas Neue', sans-serif; font-size: 1.2rem; color: var(--muted); letter-spacing: 0.05em; align-self: flex-end; padding-bottom: 6px; }
-
-  /* ── QR SIZE ── */
-  .size-option {
-    display: flex; align-items: center; gap: 14px;
-    padding: 12px 14px; border: 1px solid var(--border);
-    border-radius: 6px; cursor: pointer; transition: border-color 0.15s, background 0.15s;
-  }
-  .size-option:hover { border-color: var(--accent); }
-  .size-option.selected { border-color: var(--accent); background: rgba(111,223,176,0.06); }
-  .size-option input[type=radio] { accent-color: var(--accent); flex-shrink: 0; width: 16px; height: 16px; margin: 0; }
-  .size-option-label { font-size: 0.88rem; font-weight: 500; color: var(--text); }
-  .size-option-dim { font-size: 0.75rem; color: var(--muted); }
-  .size-option-count { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
-
-  /* ── TRASH ── */
-  .trash-item { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
-  .trash-item-info { flex: 1; min-width: 0; }
-  .trash-item-name { font-size: 0.85rem; color: var(--text); }
-  .trash-item-meta { font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
-  .trash-empty { text-align: center; padding: 32px; color: var(--muted); font-size: 0.82rem; }
-
-  /* ── DUP WARNING ── */
-  .dup-warning {
-    background: #1a2a1a; border: 1px solid var(--accent);
-    border-radius: 4px; padding: 8px 12px; font-size: 0.75rem;
-    color: var(--accent); line-height: 1.5; margin-bottom: 8px; display: none;
-  }
-  .dup-warning.visible { display: block; }
-
-  /* ── MOBILE ── */
-  @media (max-width: 640px) {
-    header { flex-direction: column; align-items: stretch; gap: 8px; padding: 14px 16px 0; }
-    .header-top { display: flex; align-items: center; gap: 8px; }
-    .header-top h1 { font-size: 2rem; }
-    .header-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-    .header-actions button { font-size: 0.7rem; padding: 7px 10px; }
-    .nav-tabs { padding: 0 16px; overflow-x: auto; }
-    .search-bar { padding: 12px 16px 10px; }
-    .section-title-bar { padding: 0 16px 6px; }
-    .add-bin-bar { padding: 10px 16px; }
-    .bins-grid { padding: 0 16px 32px; grid-template-columns: 1fr; gap: 12px; }
-    .search-results { padding: 0 16px 32px; }
-    .co-list { padding: 0 16px 32px; }
-    .detail-header { padding: 14px 16px 12px; gap: 8px; }
-    .detail-header h2 { font-size: 1.8rem; }
-    .detail-body { padding: 14px 16px; }
-    .add-item-grid { grid-template-columns: 1fr 1fr; }
-    .add-item-grid > .field-group:first-child { grid-column: 1 / -1; }
-    .add-item-grid2 { grid-template-columns: 1fr 1fr; }
-    .table-wrap { overflow-x: auto; }
-    .overview { padding: 12px 16px 0; margin-bottom: 14px; }
-    .overview-panel { grid-template-columns: 1fr 1fr; padding: 12px; }
-    .stat-item { padding: 10px 10px; border-right: none; border-bottom: 1px solid var(--border); }
-    .stat-item.row-first { padding-left: 10px; border-right: 1px solid var(--border); }
-    .stat-item.row-last { padding-right: 10px; border-right: none; }
-    .stat-item:nth-last-child(1), .stat-item:nth-last-child(2) { border-bottom: none; }
-    .stat-divider { display: none; }
-  }
+/* MOBILE */
+@media(max-width:640px){
+  header{flex-direction:column;align-items:stretch;gap:8px;padding:14px 16px 0;}
+  .header-top{display:flex;align-items:center;gap:8px;}
+  .header-top h1{font-size:2rem;}
+  .header-actions{display:flex;gap:6px;flex-wrap:wrap;}
+  .header-actions button{font-size:0.7rem;padding:7px 10px;}
+  .nav-tabs{padding:0 16px;overflow-x:auto;}
+  .storage-section{padding:0 16px;}
+  .storage-grid{grid-template-columns:1fr;gap:12px;}
+  .games-flat-table{padding:0 16px 32px;}
+  .search-bar,.games-tab-bar{padding:12px 16px 10px;}
+  .co-list{padding:0 16px 32px;}
+  .detail-header{padding:14px 16px 12px;gap:8px;}
+  .detail-header h2{font-size:1.8rem;}
+  .detail-body{padding:14px 16px;}
+  .add-item-grid{grid-template-columns:1fr 1fr;}
+  .add-item-grid>:first-child{grid-column:1/-1;}
+  .add-item-grid2{grid-template-columns:1fr 1fr;}
+  .overview{padding:12px 16px 0;margin-bottom:14px;}
+  .overview-panel{grid-template-columns:1fr 1fr;padding:12px;}
+  .stat-item{padding:10px;border-right:none;border-bottom:1px solid var(--border);}
+  .stat-item.row-first{border-right:1px solid var(--border);}
+  .stat-item.row-last{border-right:none;}
+  .stat-item:nth-last-child(1),.stat-item:nth-last-child(2){border-bottom:none;}
+  .stat-divider{display:none;}
+}
 </style>
 </head>
 <body>
 
-<!-- LOADING OVERLAY -->
+<!-- LOADING -->
 <div id="loading-overlay">
   <h1>GAME TRACKER</h1>
   <div class="spinner"></div>
@@ -730,10 +283,7 @@
       <span class="subtitle">board game inventory</span>
     </div>
     <div class="header-actions">
-      <div class="sync-badge" id="sync-badge">
-        <span class="sync-dot"></span>
-        <span id="sync-text">Live</span>
-      </div>
+      <div class="sync-badge" id="sync-badge"><span class="sync-dot"></span><span id="sync-text">Live</span></div>
       <button class="ghost" onclick="openImportModal()">⬆ Import</button>
       <button class="ghost" onclick="exportCSV()">⬇ CSV</button>
       <button class="ghost" onclick="openQRSizeModal()">🖨 Print QR</button>
@@ -742,22 +292,20 @@
     </div>
   </header>
 
-  <!-- OVERVIEW -->
   <div class="overview">
     <div class="overview-title">Overview</div>
     <div class="overview-panel" id="overview-grid"></div>
   </div>
 
-  <!-- TABS -->
   <div class="nav-tabs">
-    <div class="nav-tab active" id="tab-bins" onclick="switchTab('bins')">Bins</div>
+    <div class="nav-tab active" id="tab-bins" onclick="switchTab('bins')">Bins &amp; Shelves</div>
+    <div class="nav-tab" id="tab-games" onclick="switchTab('games')">All Games</div>
     <div class="nav-tab" id="tab-co" onclick="switchTab('co')">Checked Out <span class="tab-badge" id="co-count-badge" style="display:none">0</span></div>
     <div class="nav-tab" id="tab-search" onclick="switchTab('search')">Search</div>
   </div>
 
-  <!-- BINS TAB -->
+  <!-- BINS & SHELVES TAB -->
   <div id="tab-content-bins">
-    <!-- ── BINS SECTION ── -->
     <div class="storage-section">
       <div class="storage-section-header">
         <div class="storage-section-title">📦 Bins <span class="section-count" id="bins-count"></span></div>
@@ -768,20 +316,51 @@
       </div>
       <div class="storage-grid" id="bins-grid"></div>
     </div>
-    <!-- ── SHELVES / CABINETS SECTION ── -->
     <div class="storage-section">
       <div class="storage-section-header">
         <div class="storage-section-title">🗄 Shelves &amp; Cabinets <span class="section-count" id="shelves-count"></span></div>
         <div class="storage-section-add">
           <input type="text" id="new-shelf-name" placeholder="New shelf/cabinet name…" />
-          <select id="new-shelf-type">
-            <option value="shelf">Shelf</option>
-            <option value="cabinet">Cabinet</option>
-          </select>
+          <select id="new-shelf-type"><option value="shelf">Shelf</option><option value="cabinet">Cabinet</option></select>
           <button onclick="addShelf()">+ Add</button>
         </div>
       </div>
       <div class="storage-grid" id="shelves-grid"></div>
+    </div>
+  </div>
+
+  <!-- ALL GAMES TAB -->
+  <div id="tab-content-games" style="display:none">
+    <div class="games-tab-bar">
+      <input type="text" id="games-filter" placeholder="Filter games…" oninput="renderGamesTab()" />
+      <div class="sort-controls">
+        <select id="games-sort-field" onchange="renderGamesTab()">
+          <option value="name">Name</option>
+          <option value="genre">Genre</option>
+          <option value="condition">Condition</option>
+          <option value="players">Players</option>
+          <option value="location">Location</option>
+          <option value="status">Status</option>
+        </select>
+        <button class="ghost sort-btn" id="sort-dir-btn" onclick="toggleSortDir()">↑ A–Z</button>
+      </div>
+    </div>
+    <div class="games-flat-table">
+      <table class="items-table" id="games-flat-table">
+        <thead>
+          <tr>
+            <th class="sortable" onclick="setSort('name')">Game <span class="sort-arrow" id="arrow-name"></span></th>
+            <th class="sortable" onclick="setSort('players')">Players <span class="sort-arrow" id="arrow-players"></span></th>
+            <th>Time</th>
+            <th class="sortable" onclick="setSort('genre')">Genre <span class="sort-arrow" id="arrow-genre"></span></th>
+            <th class="sortable" onclick="setSort('condition')">Condition <span class="sort-arrow" id="arrow-condition"></span></th>
+            <th class="sortable" onclick="setSort('location')">Location <span class="sort-arrow" id="arrow-location"></span></th>
+            <th class="sortable" onclick="setSort('status')">Status <span class="sort-arrow" id="arrow-status"></span></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="games-flat-tbody"></tbody>
+      </table>
     </div>
   </div>
 
@@ -809,89 +388,36 @@
     <button class="ghost" onclick="openRenameModal()">✎ Rename</button>
   </div>
   <div class="detail-body">
-
-    <!-- ADD GAME FORM -->
     <div class="add-item-form">
       <div class="add-item-form-title">Add Game</div>
       <div id="dup-warning" class="dup-warning"></div>
       <div class="add-item-grid">
-        <div class="field-group">
-          <span class="field-label">Game Name</span>
-          <input type="text" id="new-item-name" placeholder="e.g. Catan" oninput="checkDuplicate()" />
-        </div>
-        <div class="field-group">
-          <span class="field-label">Players</span>
-          <input type="text" id="new-item-players" placeholder="2–4" />
-        </div>
-        <div class="field-group">
-          <span class="field-label">Playtime</span>
-          <input type="text" id="new-item-playtime" placeholder="60 min" />
-        </div>
+        <div class="field-group"><span class="field-label">Game Name</span><input type="text" id="new-item-name" placeholder="e.g. Catan" oninput="checkDuplicate()" /></div>
+        <div class="field-group"><span class="field-label">Players</span><input type="text" id="new-item-players" placeholder="2–4" /></div>
+        <div class="field-group"><span class="field-label">Playtime</span><input type="text" id="new-item-playtime" placeholder="60 min" /></div>
       </div>
       <div class="add-item-grid2">
-        <div class="field-group">
-          <span class="field-label">Genre</span>
-          <select id="new-item-genre">
-            <option value="">— Select —</option>
-            <option>Strategy</option>
-            <option>Party</option>
-            <option>Cooperative</option>
-            <option>Deck Building</option>
-            <option>Worker Placement</option>
-            <option>Trivia</option>
-            <option>Word</option>
-            <option>Roll &amp; Move</option>
-            <option>Abstract</option>
-            <option>RPG</option>
-            <option>Other</option>
-          </select>
+        <div class="field-group"><span class="field-label">Genre</span>
+          <select id="new-item-genre"><option value="">— Select —</option><option>Strategy</option><option>Party</option><option>Cooperative</option><option>Deck Building</option><option>Worker Placement</option><option>Trivia</option><option>Word</option><option>Roll &amp; Move</option><option>Abstract</option><option>RPG</option><option>Other</option></select>
         </div>
-        <div class="field-group">
-          <span class="field-label">Condition</span>
-          <select id="new-item-condition">
-            <option value="">— Select —</option>
-            <option value="mint">Mint</option>
-            <option value="good">Good</option>
-            <option value="fair">Fair</option>
-            <option value="poor">Poor</option>
-          </select>
+        <div class="field-group"><span class="field-label">Condition</span>
+          <select id="new-item-condition"><option value="">— Select —</option><option value="mint">Mint</option><option value="good">Good</option><option value="fair">Fair</option><option value="poor">Poor</option></select>
         </div>
-        <div class="add-item-actions" style="align-self:end">
-          <button onclick="addGame()">+ Add</button>
-        </div>
+        <div class="add-item-actions" style="align-self:end"><button onclick="addGame()">+ Add</button></div>
       </div>
     </div>
-
-    <!-- GAMES TABLE -->
     <div class="table-wrap">
-      <table class="items-table" id="items-table">
-        <thead>
-          <tr>
-            <th>Game</th>
-            <th>Players</th>
-            <th>Time</th>
-            <th>Genre</th>
-            <th>Condition</th>
-            <th>Status</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody id="items-tbody"></tbody>
-      </table>
+      <table class="items-table"><thead><tr><th>Game</th><th>Players</th><th>Time</th><th>Genre</th><th>Condition</th><th>Status</th><th></th></tr></thead>
+      <tbody id="items-tbody"></tbody></table>
     </div>
-
-    <!-- QR SECTION -->
     <div style="margin-top:24px">
       <div class="qr-section">
         <div class="qr-title" id="qr-section-title">Bin QR Code</div>
         <div id="qr-code"></div>
         <div class="qr-hint" id="qr-hint-text">Scan to view this bin's contents on any device.</div>
-        <div class="qr-actions">
-          <button class="ghost" onclick="printSingleQR()">🖨 Print This Label</button>
-        </div>
+        <div class="qr-actions"><button class="ghost" onclick="printSingleQR()">🖨 Print This Label</button></div>
       </div>
     </div>
-
   </div>
 </div>
 
@@ -902,208 +428,111 @@
   <div id="scan-items"></div>
 </div>
 
-<!-- ═══ RENAME MODAL ═══ -->
+<!-- ═══ MODALS ═══ -->
 <div class="modal-overlay" id="rename-modal" onclick="if(event.target===this)closeRenameModal()">
   <div class="modal">
     <h3 id="rename-modal-title">Rename Bin</h3>
-    <div class="field-group">
-      <span class="field-label">New name</span>
-      <input type="text" id="rename-input" placeholder="Name…" />
-    </div>
-    <div class="modal-actions">
-      <button class="ghost" onclick="closeRenameModal()">Cancel</button>
-      <button onclick="confirmRename()">Save</button>
-    </div>
+    <div class="field-group"><span class="field-label">New name</span><input type="text" id="rename-input" placeholder="Name…" /></div>
+    <div class="modal-actions"><button class="ghost" onclick="closeRenameModal()">Cancel</button><button onclick="confirmRename()">Save</button></div>
   </div>
 </div>
 
-<!-- ═══ CONFIRM DELETE MODAL ═══ -->
 <div class="modal-overlay" id="delete-modal" onclick="if(event.target===this)closeDeleteModal()">
   <div class="modal">
     <h3 id="delete-modal-title">Confirm Delete</h3>
     <p style="font-size:0.82rem;color:var(--muted);line-height:1.6" id="delete-modal-msg">Are you sure?</p>
-    <div class="modal-actions" style="margin-top:12px">
-      <button class="ghost" onclick="closeDeleteModal()">Cancel</button>
-      <button class="danger" id="delete-modal-confirm-btn" onclick="confirmDelete()">Delete</button>
-    </div>
+    <div class="modal-actions" style="margin-top:12px"><button class="ghost" onclick="closeDeleteModal()">Cancel</button><button class="danger" onclick="confirmDelete()">Delete</button></div>
   </div>
 </div>
 
-<!-- ═══ EDIT GAME MODAL ═══ -->
 <div class="modal-overlay" id="edit-modal" onclick="if(event.target===this)closeEditModal()">
   <div class="modal" style="width:400px">
     <h3>Edit Game</h3>
-    <div class="field-group" style="margin-bottom:10px">
-      <span class="field-label">Game Name</span>
-      <input type="text" id="edit-item-name" placeholder="Game name" />
+    <div class="field-group" style="margin-bottom:10px"><span class="field-label">Game Name</span><input type="text" id="edit-item-name" /></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+      <div class="field-group"><span class="field-label">Players</span><input type="text" id="edit-item-players" /></div>
+      <div class="field-group"><span class="field-label">Playtime</span><input type="text" id="edit-item-playtime" /></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      <div class="field-group">
-        <span class="field-label">Players</span>
-        <input type="text" id="edit-item-players" placeholder="2–4" />
+      <div class="field-group"><span class="field-label">Genre</span>
+        <select id="edit-item-genre"><option value="">— None —</option><option>Strategy</option><option>Party</option><option>Cooperative</option><option>Deck Building</option><option>Worker Placement</option><option>Trivia</option><option>Word</option><option>Roll &amp; Move</option><option>Abstract</option><option>RPG</option><option>Other</option></select>
       </div>
-      <div class="field-group">
-        <span class="field-label">Playtime</span>
-        <input type="text" id="edit-item-playtime" placeholder="60 min" />
+      <div class="field-group"><span class="field-label">Condition</span>
+        <select id="edit-item-condition"><option value="">— None —</option><option value="mint">Mint</option><option value="good">Good</option><option value="fair">Fair</option><option value="poor">Poor</option></select>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      <div class="field-group">
-        <span class="field-label">Genre</span>
-        <select id="edit-item-genre">
-          <option value="">— None —</option>
-          <option>Strategy</option>
-          <option>Party</option>
-          <option>Cooperative</option>
-          <option>Deck Building</option>
-          <option>Worker Placement</option>
-          <option>Trivia</option>
-          <option>Word</option>
-          <option>Roll &amp; Move</option>
-          <option>Abstract</option>
-          <option>RPG</option>
-          <option>Other</option>
-        </select>
-      </div>
-      <div class="field-group">
-        <span class="field-label">Condition</span>
-        <select id="edit-item-condition">
-          <option value="">— None —</option>
-          <option value="mint">Mint</option>
-          <option value="good">Good</option>
-          <option value="fair">Fair</option>
-          <option value="poor">Poor</option>
-        </select>
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="ghost" onclick="closeEditModal()">Cancel</button>
-      <button onclick="saveEditGame()">Save</button>
-    </div>
+    <div class="modal-actions"><button class="ghost" onclick="closeEditModal()">Cancel</button><button onclick="saveEditGame()">Save</button></div>
   </div>
 </div>
 
-<!-- ═══ CHECKOUT MODAL ═══ -->
 <div class="modal-overlay" id="checkout-modal" onclick="if(event.target===this)closeCheckoutModal()">
   <div class="modal" style="width:380px">
     <h3>Check Out Game</h3>
     <p style="font-size:0.78rem;color:var(--muted);line-height:1.5;margin-bottom:4px">Who is borrowing <strong id="checkout-game-name" style="color:var(--text)"></strong>?</p>
-    <div class="field-group">
-      <span class="field-label">Checked out by</span>
-      <input type="text" id="checkout-who" placeholder="Name…" />
-    </div>
-    <div class="field-group">
-      <span class="field-label">Notes (optional)</span>
-      <input type="text" id="checkout-notes" placeholder="e.g. returning next Friday" />
-    </div>
-    <div class="modal-actions">
-      <button class="ghost" onclick="closeCheckoutModal()">Cancel</button>
-      <button class="warn" onclick="confirmCheckout()">Check Out</button>
-    </div>
+    <div class="field-group"><span class="field-label">Checked out by</span><input type="text" id="checkout-who" placeholder="Name…" /></div>
+    <div class="field-group"><span class="field-label">Notes (optional)</span><input type="text" id="checkout-notes" placeholder="e.g. returning next Friday" /></div>
+    <div class="modal-actions"><button class="ghost" onclick="closeCheckoutModal()">Cancel</button><button class="warn" onclick="confirmCheckout()">Check Out</button></div>
   </div>
 </div>
 
-<!-- ═══ IMPORT MODAL ═══ -->
+<div class="modal-overlay" id="move-modal" onclick="if(event.target===this)closeMoveModal()">
+  <div class="modal" style="width:400px">
+    <h3>Move Game</h3>
+    <p style="font-size:0.78rem;color:var(--muted);line-height:1.5;margin-bottom:8px">Move <strong id="move-game-name" style="color:var(--text)"></strong> to a different location.</p>
+    <div class="field-group"><span class="field-label">Destination</span>
+      <select id="move-destination"></select>
+    </div>
+    <div class="modal-actions"><button class="ghost" onclick="closeMoveModal()">Cancel</button><button onclick="confirmMove()">Move</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="import-modal" onclick="if(event.target===this)closeImportModal()">
   <div class="modal" style="width:420px">
     <h3>Import Games</h3>
-    <p style="font-size:0.75rem;color:var(--muted);line-height:1.6;margin-bottom:4px">
-      Upload a CSV or Excel file. Columns recognized: <em>Bin, Game, Players, Playtime, Genre, Condition</em>.<br>
-      If no Bin column, all games go into a single bin named after the file.
-    </p>
-    <div class="field-group">
-      <span class="field-label">File</span>
-      <input type="file" id="import-file" accept=".csv,.xlsx,.xls" style="padding:8px" />
-    </div>
+    <p style="font-size:0.75rem;color:var(--muted);line-height:1.6;margin-bottom:4px">CSV or Excel. Columns: <em>Bin, Game, Players, Playtime, Genre, Condition</em>.</p>
+    <div class="field-group"><span class="field-label">File</span><input type="file" id="import-file" accept=".csv,.xlsx,.xls" style="padding:8px" /></div>
     <div id="import-status" style="font-size:0.75rem;color:var(--muted);min-height:18px"></div>
-    <div class="modal-actions">
-      <button class="ghost" onclick="closeImportModal()">Cancel</button>
-      <button onclick="doImport()">Import</button>
-    </div>
+    <div class="modal-actions"><button class="ghost" onclick="closeImportModal()">Cancel</button><button onclick="doImport()">Import</button></div>
   </div>
 </div>
 
-<!-- ═══ QR SIZE MODAL ═══ -->
 <div class="modal-overlay" id="qr-size-modal" onclick="if(event.target===this)closeQRSizeModal()">
   <div class="modal" style="width:380px">
     <h3>QR Label Size</h3>
-    <p style="font-size:0.75rem;color:var(--muted);line-height:1.6;margin-bottom:14px">Choose a size for your printed labels.</p>
     <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">
-      <label class="size-option selected">
-        <input type="radio" name="qr-size" value="80" checked onchange="selectQRSize(this)" />
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span class="size-option-label">Small</span>
-            <span class="size-option-dim">~1.1" × 1.1"</span>
-          </div>
-          <div class="size-option-count">~56 per page (7 × 8)</div>
-        </div>
-      </label>
-      <label class="size-option">
-        <input type="radio" name="qr-size" value="130" onchange="selectQRSize(this)" />
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span class="size-option-label">Medium</span>
-            <span class="size-option-dim">~1.8" × 1.8"</span>
-          </div>
-          <div class="size-option-count">~20 per page (4 × 5)</div>
-        </div>
-      </label>
-      <label class="size-option">
-        <input type="radio" name="qr-size" value="200" onchange="selectQRSize(this)" />
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span class="size-option-label">Large</span>
-            <span class="size-option-dim">~2.8" × 2.8"</span>
-          </div>
-          <div class="size-option-count">~6 per page (2 × 3)</div>
-        </div>
-      </label>
+      <label class="size-option selected"><input type="radio" name="qr-size" value="80" checked onchange="selectQRSize(this)" /><div style="flex:1"><div style="display:flex;justify-content:space-between"><span class="size-option-label">Small</span><span class="size-option-dim">~1.1"</span></div><div class="size-option-count">~56 per page</div></div></label>
+      <label class="size-option"><input type="radio" name="qr-size" value="130" onchange="selectQRSize(this)" /><div style="flex:1"><div style="display:flex;justify-content:space-between"><span class="size-option-label">Medium</span><span class="size-option-dim">~1.8"</span></div><div class="size-option-count">~20 per page</div></div></label>
+      <label class="size-option"><input type="radio" name="qr-size" value="200" onchange="selectQRSize(this)" /><div style="flex:1"><div style="display:flex;justify-content:space-between"><span class="size-option-label">Large</span><span class="size-option-dim">~2.8"</span></div><div class="size-option-count">~6 per page</div></div></label>
     </div>
-    <div class="modal-actions">
-      <button class="ghost" onclick="closeQRSizeModal()">Cancel</button>
-      <button onclick="confirmPrintAllQR()">🖨 Print Labels</button>
-    </div>
+    <div class="modal-actions"><button class="ghost" onclick="closeQRSizeModal()">Cancel</button><button onclick="confirmPrintAllQR()">🖨 Print Labels</button></div>
   </div>
 </div>
 
-<!-- ═══ RECENTLY DELETED ═══ -->
 <div class="modal-overlay" id="trash-modal" onclick="if(event.target===this)closeTrashModal()">
   <div class="modal" style="width:480px">
     <h3>Recently Deleted</h3>
-    <p style="font-size:0.75rem;color:var(--muted);line-height:1.6">Session only — clears on page refresh.</p>
+    <p style="font-size:0.75rem;color:var(--muted);line-height:1.6">Session only — clears on refresh.</p>
     <div id="trash-list" style="display:flex;flex-direction:column;gap:8px;margin:12px 0;max-height:340px;overflow-y:auto"></div>
-    <div class="modal-actions">
-      <button class="ghost" onclick="closeTrashModal()">Close</button>
-      <button class="danger" onclick="clearTrash()">Clear All</button>
-    </div>
+    <div class="modal-actions"><button class="ghost" onclick="closeTrashModal()">Close</button><button class="danger" onclick="clearTrash()">Clear All</button></div>
   </div>
 </div>
 
-<!-- ═══ RENUMBER ═══ -->
 <div class="modal-overlay" id="renumber-modal" onclick="if(event.target===this)closeRenumberModal()">
   <div class="modal" style="width:460px">
     <h3>Reorder Storage</h3>
-    <p style="font-size:0.78rem;color:var(--muted);line-height:1.6">Drag to reorder within each section, then save.</p>
+    <p style="font-size:0.78rem;color:var(--muted);line-height:1.6">Drag to reorder within each section.</p>
     <div style="font-size:0.65rem;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase;margin:10px 0 4px">📦 Bins</div>
-    <div id="renumber-list-bins" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;max-height:200px;overflow-y:auto"></div>
-    <div style="font-size:0.65rem;color:#a78bfa;letter-spacing:0.1em;text-transform:uppercase;margin:4px 0">🗄 Shelves &amp; Cabinets</div>
-    <div id="renumber-list-shelves" style="display:flex;flex-direction:column;gap:6px;margin-bottom:4px;max-height:200px;overflow-y:auto"></div>
-    <div class="modal-actions">
-      <button class="ghost" onclick="closeRenumberModal()">Cancel</button>
-      <button onclick="saveRenumber()">Save Order</button>
-    </div>
+    <div id="renumber-list-bins" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;max-height:180px;overflow-y:auto"></div>
+    <div style="font-size:0.65rem;color:var(--shelf);letter-spacing:0.1em;text-transform:uppercase;margin:4px 0">🗄 Shelves &amp; Cabinets</div>
+    <div id="renumber-list-shelves" style="display:flex;flex-direction:column;gap:6px;margin-bottom:4px;max-height:180px;overflow-y:auto"></div>
+    <div class="modal-actions"><button class="ghost" onclick="closeRenumberModal()">Cancel</button><button onclick="saveRenumber()">Save Order</button></div>
   </div>
 </div>
 
-<!-- Firebase + App Logic -->
 <script type="module">
-
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js';
-import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc, updateDoc, query } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js';
+import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js';
 
-// ─── FIREBASE CONFIG — replace with your new project ─────────
-// TODO: Replace this with your new Firebase project credentials
 const firebaseConfig = {
   apiKey: "AIzaSyAOY_juJidPjWu0L_xpnRXA6MCkieqA7Qw",
   authDomain: "game-tracker-12a79.firebaseapp.com",
@@ -1116,851 +545,637 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
 
-// ─── STATE ────────────────────────────────────────────────────
-let bins = [];
-let shelves = [];
-let activeBinId = null;
-let activeCollection = 'bins'; // 'bins' or 'shelves'
-let unsubscribeBins = null;
-let unsubscribeShelves = null;
+// ── STATE ────────────────────────────────────────────────────
+let bins = [], shelves = [];
+let activeBinId = null, activeCollection = 'bins';
+let activeTab = 'bins';
+let sortField = 'name', sortDir = 1; // 1=asc, -1=desc
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+window.esc = esc;
 
-// ─── FIRESTORE LISTENERS ──────────────────────────────────────
-unsubscribeBins = onSnapshot(collection(db, 'bins'), (snapshot) => {
-  bins = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-  bins.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+function activeList() { return activeCollection === 'shelves' ? shelves : bins; }
+function allGames() {
+  const g = [];
+  bins.forEach((b,i) => (b.items||[]).forEach(game => g.push({...game, containerId:b.id, containerName:b.name, containerIdx:i, col:'bins'})));
+  shelves.forEach((s,i) => (s.items||[]).forEach(game => g.push({...game, containerId:s.id, containerName:s.name, containerIdx:i, col:'shelves', shelfType:s.shelfType})));
+  return g;
+}
+
+// ── SYNC ─────────────────────────────────────────────────────
+function setSyncStatus(state) {
+  const badge = document.getElementById('sync-badge');
+  badge.className = 'sync-badge ' + state;
+  badge.querySelector('.sync-dot').className = 'sync-dot' + (state==='syncing'?' pulse':'');
+  document.getElementById('sync-text').textContent = state==='syncing'?'Syncing…':state==='synced'?'Saved':state==='error'?'Offline':'Live';
+}
+
+// ── FIRESTORE LISTENERS ───────────────────────────────────────
+onSnapshot(collection(db,'bins'), snap => {
+  bins = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   document.getElementById('loading-overlay').style.display = 'none';
+  refreshAll();
+}, err => { console.error(err); setSyncStatus('error'); document.getElementById('loading-overlay').style.display='none'; showView('main-view'); });
+
+onSnapshot(collection(db,'shelves'), snap => {
+  shelves = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  refreshAll();
+}, err => { console.error(err); setSyncStatus('error'); });
+
+function refreshAll() {
   const hash = window.location.hash;
   if (hash.startsWith('#bin=')) {
     const parts = decodeURIComponent(hash.slice(5)).split('|');
     const colKey = parts[0], id = parts[1] || parts[0];
-    renderScanView(colKey === 'shelf' ? shelves : bins, id);
+    renderScanView(colKey==='shelf' ? shelves : bins, id);
     showView('scan-view');
-  } else {
-    renderBins();
-    renderShelves();
-    renderOverview();
-    renderCheckedOut();
-    onSearch();
-    if (document.getElementById('detail-view').classList.contains('active') && activeBinId && activeCollection === 'bins') renderItems();
+    return;
   }
-}, (err) => {
-  console.error(err);
-  setSyncStatus('error');
-  document.getElementById('loading-overlay').style.display = 'none';
-  showView('main-view');
-});
-
-unsubscribeShelves = onSnapshot(collection(db, 'shelves'), (snapshot) => {
-  shelves = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-  shelves.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  renderShelves();
-  renderOverview();
-  renderCheckedOut();
-  onSearch();
-  if (document.getElementById('detail-view').classList.contains('active') && activeBinId && activeCollection === 'shelves') renderItems();
-}, (err) => {
-  console.error(err);
-  setSyncStatus('error');
-});
-
-// ─── SYNC STATUS ──────────────────────────────────────────────
-function setSyncStatus(state) {
-  const badge = document.getElementById('sync-badge');
-  const dot   = badge.querySelector('.sync-dot');
-  const text  = document.getElementById('sync-text');
-  badge.className = 'sync-badge ' + state;
-  dot.className   = 'sync-dot' + (state === 'syncing' ? ' pulse' : '');
-  text.textContent = state === 'syncing' ? 'Syncing…' : state === 'synced' ? 'Saved' : state === 'error' ? 'Offline' : 'Live';
+  renderBins(); renderShelves(); renderOverview(); renderCheckedOut();
+  if (activeTab === 'games') renderGamesTab();
+  if (activeTab === 'search') onSearch();
+  if (document.getElementById('detail-view').classList.contains('active') && activeBinId) renderItems();
 }
 
-// ─── ROUTING ──────────────────────────────────────────────────
-window.showView = function(id) {
-  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-
-let activeTab = 'bins';
+// ── ROUTING ──────────────────────────────────────────────────
+window.showView = function(id) { document.querySelectorAll('.view').forEach(v=>v.classList.remove('active')); document.getElementById(id).classList.add('active'); }
 window.switchTab = function(tab) {
   activeTab = tab;
-  ['bins','co','search'].forEach(t => {
-    document.getElementById('tab-' + t).classList.toggle('active', t === tab);
-    document.getElementById('tab-content-' + t).style.display = t === tab ? '' : 'none';
+  ['bins','games','co','search'].forEach(t => {
+    document.getElementById('tab-'+t).classList.toggle('active', t===tab);
+    document.getElementById('tab-content-'+t).style.display = t===tab ? '' : 'none';
   });
-  if (tab === 'search') setTimeout(() => document.getElementById('search-input').focus(), 50);
-}
-
-window.showMain = function() {
-  activeBinId = null;
-  renderBins();
-  renderShelves();
-  renderOverview();
-  renderCheckedOut();
-  onSearch();
-  showView('main-view');
-}
-
+  if (tab==='games') renderGamesTab();
+  if (tab==='search') setTimeout(()=>document.getElementById('search-input').focus(),50);
+};
+window.showMain = function() { activeBinId=null; refreshAll(); showView('main-view'); };
 window.showDetail = function(id, col) {
   col = col || 'bins';
-  activeCollection = col;
-  activeBinId = id;
-  const list = col === 'shelves' ? shelves : bins;
-  const bin = list.find(b => b.id === id);
-  if (!bin) return;
-  const binIdx = list.findIndex(b => b.id === id);
-  const typeLabel = col === 'shelves' ? (bin.shelfType === 'cabinet' ? 'Cabinet' : 'Shelf') : 'Bin';
-  document.getElementById('detail-bin-number').textContent = binIdx >= 0 ? '#' + (binIdx + 1) : '';
+  activeCollection = col; activeBinId = id;
+  const list = col==='shelves' ? shelves : bins;
+  const bin = list.find(b=>b.id===id); if(!bin) return;
+  const idx = list.findIndex(b=>b.id===id);
+  const typeLabel = col==='shelves' ? (bin.shelfType==='cabinet'?'Cabinet':'Shelf') : 'Bin';
+  document.getElementById('detail-bin-number').textContent = '#'+(idx+1);
   document.getElementById('detail-bin-name').textContent = bin.name;
-  document.getElementById('qr-section-title').textContent = typeLabel + ' QR Code';
-  document.getElementById('qr-hint-text').textContent = 'Scan to view this ' + typeLabel.toLowerCase() + "'s contents on any device.";
-  document.getElementById('rename-modal-title').textContent = 'Rename ' + typeLabel;
-  ['new-item-name','new-item-players','new-item-playtime'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('new-item-genre').value = '';
-  document.getElementById('new-item-condition').value = '';
+  document.getElementById('qr-section-title').textContent = typeLabel+' QR Code';
+  document.getElementById('qr-hint-text').textContent = 'Scan to view this '+typeLabel.toLowerCase()+"'s contents.";
+  document.getElementById('rename-modal-title').textContent = 'Rename '+typeLabel;
+  ['new-item-name','new-item-players','new-item-playtime'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('new-item-genre').value='';
+  document.getElementById('new-item-condition').value='';
   document.getElementById('dup-warning').classList.remove('visible');
-  renderItems();
-  renderQR();
-  showView('detail-view');
-}
+  renderItems(); renderQR(); showView('detail-view');
+};
 
-// ─── SCAN VIEW ────────────────────────────────────────────────
+// ── SCAN VIEW ────────────────────────────────────────────────
 function renderScanView(list, binId) {
-  const bin = list.find(b => b.id === binId);
-  if (!bin) {
-    document.getElementById('scan-bin-name').textContent = 'Not found';
-    document.getElementById('scan-meta').textContent = 'This storage location may have been deleted.';
-    return;
-  }
-  const typeEmoji = bin.shelfType === 'cabinet' ? '🗄' : bin.shelfType === 'shelf' ? '📚' : '📦';
-  document.getElementById('scan-bin-name').textContent = typeEmoji + ' ' + bin.name;
-  const games = bin.items || [];
-  const checkedOut = games.filter(g => g.checkedOut);
-  document.getElementById('scan-meta').textContent = games.length + ' game' + (games.length !== 1 ? 's' : '') +
-    (checkedOut.length > 0 ? ' · ' + checkedOut.length + ' checked out' : '');
+  const bin = list.find(b=>b.id===binId);
+  if (!bin) { document.getElementById('scan-bin-name').textContent='Not found'; document.getElementById('scan-meta').textContent='This location may have been deleted.'; return; }
+  const emoji = bin.shelfType==='cabinet'?'🗄':bin.shelfType==='shelf'?'📚':'📦';
+  document.getElementById('scan-bin-name').textContent = emoji+' '+bin.name;
+  const games = bin.items||[];
+  const co = games.filter(g=>g.checkedOut).length;
+  document.getElementById('scan-meta').textContent = games.length+' game'+(games.length!==1?'s':'')+(co>0?' · '+co+' checked out':'');
   const cont = document.getElementById('scan-items');
-  cont.innerHTML = '';
-  if (games.length === 0) {
-    cont.innerHTML = '<p style="color:var(--muted);font-size:0.8rem;padding:16px 0;">No games here yet.</p>';
-    return;
-  }
-  games.forEach(game => {
-    const metaParts = [];
-    if (game.players) metaParts.push(game.players + ' players');
-    if (game.playtime) metaParts.push(game.playtime);
-    if (game.genre) metaParts.push(game.genre);
-    if (game.condition) metaParts.push(game.condition);
-    const d = document.createElement('div');
-    d.className = 'scan-item' + (game.checkedOut ? ' co' : '');
-    d.innerHTML = '<span class="name">' + esc(game.name) + '</span>' +
-      (metaParts.length ? '<span class="meta">' + metaParts.join(' · ') + '</span>' : '') +
-      '<span class="status-col">' + (game.checkedOut
-        ? '<span class="co-badge">📤 Out · ' + esc(game.checkedOut.who) + '</span>'
-        : '<span class="in-badge">✓ In</span>') + '</span>';
-    cont.appendChild(d);
-  });
+  if (!games.length) { cont.innerHTML='<p style="color:var(--muted);font-size:0.8rem;padding:16px 0">No games here yet.</p>'; return; }
+  cont.innerHTML = games.map(g => {
+    const meta = [g.players&&g.players+' players', g.playtime, g.genre, g.condition].filter(Boolean).join(' · ');
+    return '<div class="scan-item'+(g.checkedOut?' co':'')+'"><span class="name">'+esc(g.name)+'</span>'+(meta?'<span class="meta">'+esc(meta)+'</span>':'')+'<span class="status-col">'+(g.checkedOut?'<span class="co-badge">📤 '+esc(g.checkedOut.who)+'</span>':'<span class="in-badge">✓ In</span>')+'</span></div>';
+  }).join('');
 }
 
-// ─── HELPER: get active Firestore collection ref ─────────────
-function activeList() { return activeCollection === 'shelves' ? shelves : bins; }
-
-// ─── BINS ─────────────────────────────────────────────────────
+// ── BINS ─────────────────────────────────────────────────────
 window.addBin = async function() {
-  const inp = document.getElementById('new-bin-name');
-  const name = inp.value.trim();
-  if (!name) return;
+  const inp = document.getElementById('new-bin-name'); const name = inp.value.trim(); if(!name) return;
   setSyncStatus('syncing');
-  await setDoc(doc(collection(db, 'bins'), uid()), { name, items: [], createdAt: Date.now() });
-  setSyncStatus('synced');
-  inp.value = '';
-}
-
-// ─── SHELVES / CABINETS ───────────────────────────────────────
+  await setDoc(doc(collection(db,'bins'),uid()), {name,items:[],createdAt:Date.now()});
+  setSyncStatus('synced'); inp.value='';
+};
 window.addShelf = async function() {
-  const inp = document.getElementById('new-shelf-name');
-  const name = inp.value.trim();
-  if (!name) return;
+  const inp = document.getElementById('new-shelf-name'); const name = inp.value.trim(); if(!name) return;
   const shelfType = document.getElementById('new-shelf-type').value;
   setSyncStatus('syncing');
-  await setDoc(doc(collection(db, 'shelves'), uid()), { name, shelfType, items: [], createdAt: Date.now() });
-  setSyncStatus('synced');
-  inp.value = '';
-}
-
-// ─── DELETE ───────────────────────────────────────────────────
-let pendingDelete = null;
-window.deleteContainer = function(id, col) {
-  const list = col === 'shelves' ? shelves : bins;
-  const item = list.find(b => b.id === id);
-  if (!item) return;
-  const label = col === 'shelves' ? (item.shelfType === 'cabinet' ? 'Cabinet' : 'Shelf') : 'Bin';
-  pendingDelete = { type: 'container', col, containerId: id };
-  document.getElementById('delete-modal-title').textContent = 'Delete ' + label;
-  document.getElementById('delete-modal-msg').textContent = 'Delete "' + item.name + '" and all its games? This cannot be undone.';
-  document.getElementById('delete-modal').classList.add('open');
-}
-window.deleteGame = function(containerId, gameId, col) {
-  col = col || activeCollection;
-  const list = col === 'shelves' ? shelves : bins;
-  const container = list.find(b => b.id === containerId);
-  const game = (container?.items || []).find(g => g.id === gameId);
-  if (!game) return;
-  pendingDelete = { type: 'game', col, containerId, gameId };
-  document.getElementById('delete-modal-title').textContent = 'Remove Game';
-  document.getElementById('delete-modal-msg').textContent = 'Remove "' + game.name + '" from this location?';
-  document.getElementById('delete-modal').classList.add('open');
-}
-window.closeDeleteModal = function() { document.getElementById('delete-modal').classList.remove('open'); pendingDelete = null; }
-window.confirmDelete = async function() {
-  if (!pendingDelete) return;
-  const { type, col, containerId, gameId } = pendingDelete;
-  const list = col === 'shelves' ? shelves : bins;
-  const container = list.find(b => b.id === containerId);
-  const colRef = collection(db, col);
-  if (type === 'container') {
-    if (container) trashItems.push({ type: 'container', col, containerName: container.name, data: JSON.parse(JSON.stringify(container)), deletedAt: Date.now() });
-    closeDeleteModal();
-    setSyncStatus('syncing');
-    await deleteDoc(doc(colRef, containerId));
-    setSyncStatus('synced');
-  } else {
-    const game = (container?.items || []).find(g => g.id === gameId);
-    if (game && container) trashItems.push({ type: 'game', col, containerName: container.name, gameId, data: JSON.parse(JSON.stringify(game)), deletedAt: Date.now() });
-    closeDeleteModal();
-    setSyncStatus('syncing');
-    const newItems = (container.items || []).filter(g => g.id !== gameId);
-    await updateDoc(doc(colRef, containerId), { items: newItems });
-    setSyncStatus('synced');
-    renderItems();
-  }
-}
-
-window.openRenameModal = function() {
-  const bin = activeList().find(b => b.id === activeBinId);
-  if (!bin) return;
-  document.getElementById('rename-input').value = bin.name;
-  document.getElementById('rename-modal').classList.add('open');
-  setTimeout(() => document.getElementById('rename-input').select(), 50);
-}
-window.closeRenameModal = function() { document.getElementById('rename-modal').classList.remove('open'); }
-window.confirmRename = async function() {
-  const newName = document.getElementById('rename-input').value.trim();
-  if (!newName) return;
-  setSyncStatus('syncing');
-  await updateDoc(doc(collection(db, activeCollection), activeBinId), { name: newName });
-  setSyncStatus('synced');
-  document.getElementById('detail-bin-name').textContent = newName;
-  closeRenameModal();
-}
+  await setDoc(doc(collection(db,'shelves'),uid()), {name,shelfType,items:[],createdAt:Date.now()});
+  setSyncStatus('synced'); inp.value='';
+};
 
 function renderContainerCard(item, idx, col) {
-  const games = item.items || [];
-  const checkedOut = games.filter(g => g.checkedOut).length;
-  const preview = games.slice(0, 3).map(g =>
-    '<div class="bin-preview-item"><span class="item-name">' + esc(g.name) + '</span>' +
-    (g.checkedOut ? '<span class="co-badge" style="font-size:0.6rem">Out</span>' : '') + '</div>'
-  ).join('');
-  const more = games.length > 3 ? '<div class="bin-preview-item"><span style="color:var(--muted)">+' + (games.length - 3) + ' more…</span></div>' : '';
-  const coInfo = checkedOut > 0
-    ? '<span class="co-count">' + checkedOut + ' out</span>'
-    : '<span style="color:var(--muted)">' + games.length + ' game' + (games.length !== 1 ? 's' : '') + '</span>';
-  const isShelf = col === 'shelves';
-  const typeLabel = isShelf ? (item.shelfType === 'cabinet' ? 'Cabinet' : 'Shelf') : '';
-  const typeBadge = isShelf ? '<span class="shelf-type-badge">' + typeLabel + '</span>' : '';
-  const cardClass = 'bin-card' + (isShelf ? ' shelf-card' : '');
-  return '<div class="' + cardClass + '" onclick="showDetail('' + item.id + '','' + col + '')">' +
-    '<div class="bin-card-top"><span class="bin-label">' + esc(item.name) + typeBadge + '</span>' +
-    '<div style="display:flex;align-items:center;gap:8px"><span class="bin-count">' + games.length + ' game' + (games.length !== 1 ? 's' : '') + '</span><span class="bin-number">#' + (idx+1) + '</span></div></div>' +
-    '<div class="bin-card-body">' + (games.length === 0 ? '<span style="color:var(--muted);font-size:0.75rem">Empty</span>' : preview + more) + '</div>' +
-    '<div class="bin-card-footer"><div class="bin-footer-info">' + coInfo + '</div>' +
-    '<div class="bin-actions"><button class="danger" onclick="event.stopPropagation();deleteContainer('' + item.id + '','' + col + '')">✕ Delete</button></div>' +
-    '</div></div>';
+  const games = item.items||[];
+  const co = games.filter(g=>g.checkedOut).length;
+  const isShelf = col==='shelves';
+  const typeLabel = isShelf ? (item.shelfType==='cabinet'?'Cabinet':'Shelf') : '';
+  const typeBadge = isShelf ? '<span class="shelf-type-badge">'+typeLabel+'</span>' : '';
+  const preview = games.slice(0,3).map(g=>'<div class="bin-preview-item"><span class="item-name">'+esc(g.name)+'</span>'+(g.checkedOut?'<span class="co-badge" style="font-size:0.6rem">Out</span>':'')+'</div>').join('');
+  const more = games.length>3 ? '<div class="bin-preview-item"><span style="color:var(--muted)">+'+(games.length-3)+' more…</span></div>' : '';
+  const footer = co>0 ? '<span class="co-count">'+co+' out</span>' : '<span style="color:var(--muted)">'+games.length+' game'+(games.length!==1?'s':'')+'</span>';
+  return '<div class="bin-card'+(isShelf?' shelf-card':'')+'" onclick="showDetail(\''+item.id+'\',\''+col+'\')">'+
+    '<div class="bin-card-top"><span class="bin-label">'+esc(item.name)+typeBadge+'</span><div style="display:flex;align-items:center;gap:8px"><span class="bin-count">'+games.length+' game'+(games.length!==1?'s':'')+'</span><span class="bin-number">#'+(idx+1)+'</span></div></div>'+
+    '<div class="bin-card-body">'+(games.length?preview+more:'<span style="color:var(--muted);font-size:0.75rem">Empty</span>')+'</div>'+
+    '<div class="bin-card-footer"><div class="bin-footer-info">'+footer+'</div><div class="bin-actions"><button class="danger" onclick="event.stopPropagation();deleteContainer(\''+item.id+'\',\''+col+'\')">✕ Delete</button></div></div></div>';
 }
 
 function renderBins() {
-  const grid = document.getElementById('bins-grid');
-  const countEl = document.getElementById('bins-count');
-  if (countEl) countEl.textContent = bins.length ? bins.length + ' bin' + (bins.length !== 1 ? 's' : '') : '';
-  if (bins.length === 0) {
-    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">📦</div><p>No bins yet.<br>Add your first one above.</p></div>';
-    return;
-  }
-  grid.innerHTML = bins.map((bin, idx) => renderContainerCard(bin, idx, 'bins')).join('');
+  const g = document.getElementById('bins-grid');
+  const c = document.getElementById('bins-count');
+  if(c) c.textContent = bins.length ? bins.length+' bin'+(bins.length!==1?'s':'') : '';
+  g.innerHTML = bins.length ? bins.map((b,i)=>renderContainerCard(b,i,'bins')).join('') : '<div class="empty-state" style="grid-column:1/-1"><div class="icon">📦</div><p>No bins yet.<br>Add one above.</p></div>';
 }
-
 function renderShelves() {
-  const grid = document.getElementById('shelves-grid');
-  const countEl = document.getElementById('shelves-count');
-  if (countEl) countEl.textContent = shelves.length ? shelves.length + ' item' + (shelves.length !== 1 ? 's' : '') : '';
-  if (shelves.length === 0) {
-    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">🗄</div><p>No shelves or cabinets yet.<br>Add one above.</p></div>';
-    return;
+  const g = document.getElementById('shelves-grid');
+  const c = document.getElementById('shelves-count');
+  if(c) c.textContent = shelves.length ? shelves.length+' item'+(shelves.length!==1?'s':'') : '';
+  g.innerHTML = shelves.length ? shelves.map((s,i)=>renderContainerCard(s,i,'shelves')).join('') : '<div class="empty-state" style="grid-column:1/-1"><div class="icon">🗄</div><p>No shelves or cabinets yet.<br>Add one above.</p></div>';
+}
+
+// ── DELETE CONTAINER ─────────────────────────────────────────
+let pendingDelete = null;
+window.deleteContainer = function(id, col) {
+  const list = col==='shelves'?shelves:bins; const item = list.find(b=>b.id===id); if(!item) return;
+  const label = col==='shelves'?(item.shelfType==='cabinet'?'Cabinet':'Shelf'):'Bin';
+  pendingDelete = {type:'container',col,containerId:id};
+  document.getElementById('delete-modal-title').textContent = 'Delete '+label;
+  document.getElementById('delete-modal-msg').textContent = 'Delete "'+item.name+'" and all its games? Cannot be undone.';
+  document.getElementById('delete-modal').classList.add('open');
+};
+window.deleteGame = function(containerId, gameId, col) {
+  col = col||activeCollection;
+  const list = col==='shelves'?shelves:bins; const c = list.find(b=>b.id===containerId);
+  const g = (c?.items||[]).find(g=>g.id===gameId); if(!g) return;
+  pendingDelete = {type:'game',col,containerId,gameId};
+  document.getElementById('delete-modal-title').textContent = 'Remove Game';
+  document.getElementById('delete-modal-msg').textContent = 'Remove "'+g.name+'" from this location?';
+  document.getElementById('delete-modal').classList.add('open');
+};
+window.closeDeleteModal = function() { document.getElementById('delete-modal').classList.remove('open'); pendingDelete=null; };
+window.confirmDelete = async function() {
+  if(!pendingDelete) return;
+  const {type,col,containerId,gameId} = pendingDelete;
+  const list = col==='shelves'?shelves:bins; const container = list.find(b=>b.id===containerId);
+  if(type==='container') {
+    if(container) trashItems.push({type:'container',col,containerName:container.name,data:JSON.parse(JSON.stringify(container)),deletedAt:Date.now()});
+    closeDeleteModal(); setSyncStatus('syncing');
+    await deleteDoc(doc(collection(db,col),containerId)); setSyncStatus('synced');
+  } else {
+    const game = (container?.items||[]).find(g=>g.id===gameId);
+    if(game&&container) trashItems.push({type:'game',col,containerName:container.name,data:JSON.parse(JSON.stringify(game)),deletedAt:Date.now()});
+    closeDeleteModal(); setSyncStatus('syncing');
+    await updateDoc(doc(collection(db,col),containerId),{items:(container.items||[]).filter(g=>g.id!==gameId)});
+    setSyncStatus('synced'); renderItems();
   }
-  grid.innerHTML = shelves.map((shelf, idx) => renderContainerCard(shelf, idx, 'shelves')).join('');
-}
+};
 
-
-// ─── GAMES ────────────────────────────────────────────────────
-window.addGame = async function() {
-  const name = document.getElementById('new-item-name').value.trim();
-  if (!name) return;
-  const bin = activeList().find(b => b.id === activeBinId);
-  if (!bin) return;
-  const game = {
-    id: uid(),
-    name,
-    players: document.getElementById('new-item-players').value.trim(),
-    playtime: document.getElementById('new-item-playtime').value.trim(),
-    genre: document.getElementById('new-item-genre').value,
-    condition: document.getElementById('new-item-condition').value,
-    checkedOut: null,
-    addedAt: Date.now()
-  };
+// ── RENAME ───────────────────────────────────────────────────
+window.openRenameModal = function() {
+  const bin = activeList().find(b=>b.id===activeBinId); if(!bin) return;
+  document.getElementById('rename-input').value = bin.name;
+  document.getElementById('rename-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('rename-input').select(),50);
+};
+window.closeRenameModal = function() { document.getElementById('rename-modal').classList.remove('open'); };
+window.confirmRename = async function() {
+  const name = document.getElementById('rename-input').value.trim(); if(!name) return;
   setSyncStatus('syncing');
-  await updateDoc(doc(collection(db, activeCollection), activeBinId), { items: [...(bin.items || []), game] });
+  await updateDoc(doc(collection(db,activeCollection),activeBinId),{name});
   setSyncStatus('synced');
-  ['new-item-name','new-item-players','new-item-playtime'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('new-item-genre').value = '';
-  document.getElementById('new-item-condition').value = '';
+  document.getElementById('detail-bin-name').textContent = name;
+  closeRenameModal();
+};
+
+// ── GAMES ────────────────────────────────────────────────────
+window.addGame = async function() {
+  const name = document.getElementById('new-item-name').value.trim(); if(!name) return;
+  const bin = activeList().find(b=>b.id===activeBinId); if(!bin) return;
+  const game = {id:uid(),name,players:document.getElementById('new-item-players').value.trim(),playtime:document.getElementById('new-item-playtime').value.trim(),genre:document.getElementById('new-item-genre').value,condition:document.getElementById('new-item-condition').value,checkedOut:null,addedAt:Date.now()};
+  setSyncStatus('syncing');
+  await updateDoc(doc(collection(db,activeCollection),activeBinId),{items:[...(bin.items||[]),game]});
+  setSyncStatus('synced');
+  ['new-item-name','new-item-players','new-item-playtime'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('new-item-genre').value=''; document.getElementById('new-item-condition').value='';
   document.getElementById('dup-warning').classList.remove('visible');
-}
+};
 
 function renderItems() {
-  const bin = activeList().find(b => b.id === activeBinId);
-  if (!bin) return;
-  const tbody = document.getElementById('items-tbody');
-  const games = bin.items || [];
-  const col = activeCollection;
-  if (games.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px;font-size:0.8rem">No games here yet. Add one above.</td></tr>';
-    return;
-  }
+  const bin = activeList().find(b=>b.id===activeBinId); if(!bin) return;
+  const tbody = document.getElementById('items-tbody'); const col = activeCollection;
+  const games = bin.items||[];
+  if(!games.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px;font-size:0.8rem">No games here yet. Add one above.</td></tr>'; return; }
   tbody.innerHTML = games.map(g => {
-    const condClass = g.condition ? ' ' + g.condition : '';
-    const condLabel = g.condition ? g.condition.charAt(0).toUpperCase() + g.condition.slice(1) : '—';
-    const coStatus = g.checkedOut
-      ? '<span class="co-badge">📤 ' + esc(g.checkedOut.who) + '</span>'
-      : '<span class="in-badge">✓ In</span>';
+    const condClass = g.condition?' '+g.condition:''; const condLabel = g.condition?g.condition.charAt(0).toUpperCase()+g.condition.slice(1):'—';
+    const coStatus = g.checkedOut ? '<span class="co-badge">📤 '+esc(g.checkedOut.who)+'</span>' : '<span class="in-badge">✓ In</span>';
     const coBtn = g.checkedOut
-      ? '<button class="checkin-btn" onclick="checkIn(\'' + activeBinId + '\',\'' + g.id + '\',\'' + col + '\')">Check In</button>'
-      : '<button class="checkout-btn" onclick="openCheckoutModal(\'' + activeBinId + '\',\'' + g.id + '\',\'' + col + '\')">Check Out</button>';
-    return '<tr class="' + (g.checkedOut ? 'is-checked-out' : '') + '">' +
-      '<td><span class="editable-cell" onclick="openEditModal(\'' + g.id + '\')"> ' + esc(g.name) + '</span></td>' +
-      '<td>' + esc(g.players || '—') + '</td>' +
-      '<td>' + esc(g.playtime || '—') + '</td>' +
-      '<td>' + esc(g.genre || '—') + '</td>' +
-      '<td><span class="cond-badge' + condClass + '">' + condLabel + '</span></td>' +
-      '<td>' + coStatus + '</td>' +
-      '<td style="display:flex;gap:6px;align-items:center">' + coBtn + '<button class="del-btn" onclick="deleteGame(\'' + activeBinId + '\',\'' + g.id + '\',\'' + col + '\')">✕</button></td>' +
-      '</tr>';
+      ? '<button class="checkin-btn" onclick="checkIn(\''+activeBinId+'\',\''+g.id+'\',\''+col+'\')">Check In</button>'
+      : '<button class="checkout-btn" onclick="openCheckoutModal(\''+activeBinId+'\',\''+g.id+'\',\''+col+'\')">Check Out</button>';
+    return '<tr class="'+(g.checkedOut?'is-checked-out':'')+'">'
+      +'<td><span class="editable-cell" onclick="openEditModal(\''+g.id+'\')">'+esc(g.name)+'</span></td>'
+      +'<td>'+esc(g.players||'—')+'</td><td>'+esc(g.playtime||'—')+'</td><td>'+esc(g.genre||'—')+'</td>'
+      +'<td><span class="cond-badge'+condClass+'">'+condLabel+'</span></td>'
+      +'<td>'+coStatus+'</td>'
+      +'<td style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">'+coBtn
+        +'<button class="move-btn" onclick="openMoveModal(\''+activeBinId+'\',\''+g.id+'\',\''+col+'\')">⇄ Move</button>'
+        +'<button class="del-btn" onclick="deleteGame(\''+activeBinId+'\',\''+g.id+'\',\''+col+'\')">✕</button>'
+      +'</td></tr>';
   }).join('');
 }
 
-// ─── CHECKOUT ─────────────────────────────────────────────────
+// ── ALL GAMES TAB ────────────────────────────────────────────
+window.setSort = function(field) {
+  if(sortField===field) sortDir*=-1; else { sortField=field; sortDir=1; }
+  document.getElementById('games-sort-field').value = field;
+  updateSortDirBtn();
+  renderGamesTab();
+};
+window.toggleSortDir = function() { sortDir*=-1; updateSortDirBtn(); renderGamesTab(); };
+function updateSortDirBtn() {
+  document.getElementById('sort-dir-btn').textContent = sortDir===1 ? '↑ A–Z' : '↓ Z–A';
+  document.querySelectorAll('.sort-arrow').forEach(el=>el.textContent='');
+  const arrow = document.getElementById('arrow-'+sortField);
+  if(arrow) arrow.textContent = sortDir===1 ? '▲' : '▼';
+  document.querySelectorAll('.items-table th').forEach(th=>th.classList.remove('sort-active'));
+  const th = document.querySelector('[onclick="setSort(\''+sortField+'\')"]');
+  if(th) th.classList.add('sort-active');
+}
+window.renderGamesTab = function() {
+  const filter = (document.getElementById('games-filter')?.value||'').toLowerCase();
+  // sync dropdown to sortField if changed there
+  const selField = document.getElementById('games-sort-field').value;
+  if(selField !== sortField) { sortField=selField; updateSortDirBtn(); }
+  let games = allGames().filter(g => !filter || g.name.toLowerCase().includes(filter) || (g.genre||'').toLowerCase().includes(filter) || g.containerName.toLowerCase().includes(filter));
+  const condOrder = {mint:0,good:1,fair:2,poor:3,'':4};
+  games.sort((a,b) => {
+    let av='', bv='';
+    if(sortField==='name'){av=a.name||'';bv=b.name||'';}
+    else if(sortField==='genre'){av=a.genre||'';bv=b.genre||'';}
+    else if(sortField==='condition'){av=condOrder[a.condition]??4;bv=condOrder[b.condition]??4;return sortDir*(av-bv);}
+    else if(sortField==='players'){av=a.players||'';bv=b.players||'';}
+    else if(sortField==='location'){av=a.containerName||'';bv=b.containerName||'';}
+    else if(sortField==='status'){av=a.checkedOut?1:0;bv=b.checkedOut?1:0;return sortDir*(av-bv);}
+    return sortDir*av.localeCompare(bv);
+  });
+  const tbody = document.getElementById('games-flat-tbody');
+  if(!games.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:32px;font-size:0.8rem">'+(filter?'No games matching "'+esc(filter)+'"':'No games logged yet.')+'</td></tr>'; return; }
+  tbody.innerHTML = games.map(g => {
+    const condClass = g.condition?' '+g.condition:''; const condLabel = g.condition?g.condition.charAt(0).toUpperCase()+g.condition.slice(1):'—';
+    const coStatus = g.checkedOut ? '<span class="co-badge">📤 '+esc(g.checkedOut.who)+'</span>' : '<span class="in-badge">✓ In</span>';
+    const isShelf = g.col==='shelves'; const locEmoji = isShelf?(g.shelfType==='cabinet'?'🗄':'📚'):'📦';
+    const locChip = '<span class="location-chip'+(isShelf?' is-shelf':'')+'">'+locEmoji+' #'+(g.containerIdx+1)+' '+esc(g.containerName)+'</span>';
+    return '<tr class="'+(g.checkedOut?'is-checked-out:':'')+'" style="cursor:pointer" onclick="showDetail(\''+g.containerId+'\',\''+g.col+'\')">'
+      +'<td>'+esc(g.name)+'</td><td>'+esc(g.players||'—')+'</td><td>'+esc(g.playtime||'—')+'</td><td>'+esc(g.genre||'—')+'</td>'
+      +'<td><span class="cond-badge'+condClass+'">'+condLabel+'</span></td>'
+      +'<td>'+locChip+'</td><td>'+coStatus+'</td>'
+      +'<td onclick="event.stopPropagation()" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">'
+        +'<button class="move-btn" onclick="openMoveModal(\''+g.containerId+'\',\''+g.id+'\',\''+g.col+'\')">⇄ Move</button>'
+        +'<button class="del-btn" onclick="deleteGame(\''+g.containerId+'\',\''+g.id+'\',\''+g.col+'\')">✕</button>'
+      +'</td></tr>';
+  }).join('');
+  updateSortDirBtn();
+};
+
+// ── MOVE GAME ────────────────────────────────────────────────
+let pendingMove = null;
+window.openMoveModal = function(containerId, gameId, col) {
+  col = col||activeCollection;
+  const list = col==='shelves'?shelves:bins; const container = list.find(b=>b.id===containerId);
+  const game = (container?.items||[]).find(g=>g.id===gameId); if(!game) return;
+  pendingMove = {containerId,gameId,col};
+  document.getElementById('move-game-name').textContent = game.name;
+  const sel = document.getElementById('move-destination'); sel.innerHTML='';
+  const allContainers = [
+    ...bins.map((b,i)=>({id:b.id,col:'bins',label:'📦 #'+(i+1)+' '+b.name})),
+    ...shelves.map((s,i)=>({id:s.id,col:'shelves',label:(s.shelfType==='cabinet'?'🗄':'📚')+' #'+(i+1)+' '+s.name}))
+  ];
+  allContainers.forEach(c => {
+    if(c.id===containerId && c.col===col) return; // skip current
+    const opt = document.createElement('option'); opt.value=c.col+'|'+c.id; opt.textContent=c.label; sel.appendChild(opt);
+  });
+  if(!sel.options.length) { alert('No other locations to move to. Add another bin or shelf first.'); return; }
+  document.getElementById('move-modal').classList.add('open');
+};
+window.closeMoveModal = function() { document.getElementById('move-modal').classList.remove('open'); pendingMove=null; };
+window.confirmMove = async function() {
+  if(!pendingMove) return;
+  const {containerId,gameId,col} = pendingMove;
+  const [destCol,destId] = document.getElementById('move-destination').value.split('|');
+  const srcList = col==='shelves'?shelves:bins; const srcContainer = srcList.find(b=>b.id===containerId);
+  const destList = destCol==='shelves'?shelves:bins; const destContainer = destList.find(b=>b.id===destId);
+  if(!srcContainer||!destContainer) return;
+  const game = (srcContainer.items||[]).find(g=>g.id===gameId); if(!game) return;
+  const newSrcItems = (srcContainer.items||[]).filter(g=>g.id!==gameId);
+  const newDestItems = [...(destContainer.items||[]), {...game}];
+  closeMoveModal(); setSyncStatus('syncing');
+  await updateDoc(doc(collection(db,col),containerId),{items:newSrcItems});
+  await updateDoc(doc(collection(db,destCol),destId),{items:newDestItems});
+  setSyncStatus('synced');
+  if(activeBinId===containerId && activeCollection===col) renderItems();
+};
+
+// ── CHECKOUT ─────────────────────────────────────────────────
 let pendingCheckout = null;
-window.openCheckoutModal = function(binId, gameId) {
-  const bin = bins.find(b => b.id === binId);
-  const game = (bin?.items || []).find(g => g.id === gameId);
-  if (!game) return;
-  pendingCheckout = { binId, gameId };
-  document.getElementById('checkout-game-name').textContent = game.name;
-  document.getElementById('checkout-who').value = '';
-  document.getElementById('checkout-notes').value = '';
+window.openCheckoutModal = function(containerId, gameId, col) {
+  col=col||activeCollection;
+  const list=col==='shelves'?shelves:bins; const bin=list.find(b=>b.id===containerId);
+  const game=(bin?.items||[]).find(g=>g.id===gameId); if(!game) return;
+  pendingCheckout={containerId,gameId,col};
+  document.getElementById('checkout-game-name').textContent=game.name;
+  document.getElementById('checkout-who').value=''; document.getElementById('checkout-notes').value='';
   document.getElementById('checkout-modal').classList.add('open');
-  setTimeout(() => document.getElementById('checkout-who').focus(), 50);
-}
-window.closeCheckoutModal = function() { document.getElementById('checkout-modal').classList.remove('open'); pendingCheckout = null; }
+  setTimeout(()=>document.getElementById('checkout-who').focus(),50);
+};
+window.closeCheckoutModal = function() { document.getElementById('checkout-modal').classList.remove('open'); pendingCheckout=null; };
 window.confirmCheckout = async function() {
-  const who = document.getElementById('checkout-who').value.trim();
-  if (!who) { document.getElementById('checkout-who').focus(); return; }
-  const notes = document.getElementById('checkout-notes').value.trim();
-  const { binId, gameId } = pendingCheckout;
-  const bin = bins.find(b => b.id === binId);
-  const newItems = (bin.items || []).map(g => g.id === gameId
-    ? { ...g, checkedOut: { who, notes, timestamp: Date.now() } }
-    : g
-  );
-  closeCheckoutModal();
-  setSyncStatus('syncing');
-  await updateDoc(doc(collection(db, 'bins'), binId), { items: newItems });
-  setSyncStatus('synced');
-  renderItems();
-  renderCheckedOut();
-}
+  const who=document.getElementById('checkout-who').value.trim(); if(!who){document.getElementById('checkout-who').focus();return;}
+  const notes=document.getElementById('checkout-notes').value.trim();
+  const {containerId,gameId,col}=pendingCheckout;
+  const list=col==='shelves'?shelves:bins; const bin=list.find(b=>b.id===containerId);
+  const newItems=(bin.items||[]).map(g=>g.id===gameId?{...g,checkedOut:{who,notes,timestamp:Date.now()}}:g);
+  closeCheckoutModal(); setSyncStatus('syncing');
+  await updateDoc(doc(collection(db,col),containerId),{items:newItems});
+  setSyncStatus('synced'); renderItems(); renderCheckedOut();
+};
 window.checkIn = async function(containerId, gameId, col) {
-  col = col || activeCollection;
-  const list = col === 'shelves' ? shelves : bins;
-  const bin = list.find(b => b.id === containerId);
-  if (!bin) return;
-  const newItems = (bin.items || []).map(g => g.id === gameId ? { ...g, checkedOut: null } : g);
+  col=col||activeCollection;
+  const list=col==='shelves'?shelves:bins; const bin=list.find(b=>b.id===containerId); if(!bin) return;
+  const newItems=(bin.items||[]).map(g=>g.id===gameId?{...g,checkedOut:null}:g);
   setSyncStatus('syncing');
-  await updateDoc(doc(collection(db, col), containerId), { items: newItems });
-  setSyncStatus('synced');
-  renderItems();
-  renderCheckedOut();
-}
+  await updateDoc(doc(collection(db,col),containerId),{items:newItems});
+  setSyncStatus('synced'); renderItems(); renderCheckedOut();
+};
 
-// ─── CHECKED OUT VIEW ─────────────────────────────────────────
+// ── CHECKED OUT ───────────────────────────────────────────────
 function renderCheckedOut() {
-  const allCO = [];
-  bins.forEach((bin, idx) => {
-    (bin.items || []).forEach(g => {
-      if (g.checkedOut) allCO.push({ ...g, containerId: bin.id, containerName: bin.name, containerIdx: idx, col: 'bins' });
-    });
-  });
-  shelves.forEach((shelf, idx) => {
-    (shelf.items || []).forEach(g => {
-      if (g.checkedOut) allCO.push({ ...g, containerId: shelf.id, containerName: shelf.name, containerIdx: idx, col: 'shelves', shelfType: shelf.shelfType });
-    });
-  });
-  allCO.sort((a, b) => (b.checkedOut.timestamp || 0) - (a.checkedOut.timestamp || 0));
-
-  const badge = document.getElementById('co-count-badge');
-  if (allCO.length > 0) { badge.textContent = allCO.length; badge.style.display = ''; }
-  else { badge.style.display = 'none'; }
-
-  const wrap = document.getElementById('co-list-wrap');
-  if (allCO.length === 0) {
-    wrap.innerHTML = '<div class="co-empty"><div class="icon">✓</div><p>All games are checked in.</p></div>';
-    return;
-  }
-  wrap.innerHTML = allCO.map(g => {
-    const ts = g.checkedOut.timestamp ? new Date(g.checkedOut.timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-    const metaParts = [];
-    if (g.players) metaParts.push(g.players + ' players');
-    if (g.genre) metaParts.push(g.genre);
-    if (g.condition) metaParts.push(g.condition);
-    const typeEmoji = g.col === 'shelves' ? (g.shelfType === 'cabinet' ? '🗄' : '📚') : '📦';
-    return '<div class="co-row">' +
-      '<div>' +
-        '<div class="co-row-name">' + esc(g.name) + '</div>' +
-        (metaParts.length ? '<div class="co-row-meta">' + metaParts.map(esc).join(' · ') + '</div>' : '') +
-        '<div class="co-row-meta" style="color:var(--checked-out);margin-top:4px">' +
-          'Out to <strong>' + esc(g.checkedOut.who) + '</strong>' +
-          (g.checkedOut.notes ? ' · ' + esc(g.checkedOut.notes) : '') +
-          ' · since ' + ts +
-        '</div>' +
-      '</div>' +
-      '<div class="co-row-actions">' +
-        '<div class="co-row-bin" style="cursor:pointer" onclick="showDetail(\'' + g.containerId + '\',\'' + g.col + '\')">' + typeEmoji + ' #' + (g.containerIdx+1) + ' ' + esc(g.containerName) + '</div>' +
-        '<button class="checkin-btn" onclick="checkIn(\'' + g.containerId + '\',\'' + g.id + '\',\'' + g.col + '\')">Check In</button>' +
-      '</div>' +
-      '</div>';
+  const co = allGames().filter(g=>g.checkedOut).sort((a,b)=>(b.checkedOut.timestamp||0)-(a.checkedOut.timestamp||0));
+  const badge=document.getElementById('co-count-badge');
+  badge.textContent=co.length; badge.style.display=co.length?'':'none';
+  const wrap=document.getElementById('co-list-wrap');
+  if(!co.length){wrap.innerHTML='<div class="co-empty"><div class="icon">✓</div><p>All games are checked in.</p></div>';return;}
+  wrap.innerHTML=co.map(g=>{
+    const ts=g.checkedOut.timestamp?new Date(g.checkedOut.timestamp).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—';
+    const meta=[g.players&&g.players+' players',g.genre,g.condition].filter(Boolean).join(' · ');
+    const isShelf=g.col==='shelves'; const locEmoji=isShelf?(g.shelfType==='cabinet'?'🗄':'📚'):'📦';
+    return '<div class="co-row"><div>'
+      +'<div class="co-row-name">'+esc(g.name)+'</div>'
+      +(meta?'<div class="co-row-meta">'+esc(meta)+'</div>':'')
+      +'<div class="co-row-meta" style="color:var(--checked-out);margin-top:4px">Out to <strong>'+esc(g.checkedOut.who)+'</strong>'+(g.checkedOut.notes?' · '+esc(g.checkedOut.notes):'')+' · since '+ts+'</div>'
+      +'</div><div class="co-row-actions">'
+      +'<div class="co-row-bin" style="cursor:pointer" onclick="showDetail(\''+g.containerId+'\',\''+g.col+'\')">'+locEmoji+' #'+(g.containerIdx+1)+' '+esc(g.containerName)+'</div>'
+      +'<button class="checkin-btn" onclick="checkIn(\''+g.containerId+'\',\''+g.id+'\',\''+g.col+'\')">Check In</button>'
+      +'</div></div>';
   }).join('');
 }
 
-
-// ─── EDIT GAME ────────────────────────────────────────────────
-let editingGameId = null;
+// ── EDIT GAME ────────────────────────────────────────────────
+let editingGameId=null;
 window.openEditModal = function(gameId) {
-  const bin = activeList().find(b => b.id === activeBinId);
-  const game = (bin?.items || []).find(g => g.id === gameId);
-  if (!game) return;
-  editingGameId = gameId;
-  document.getElementById('edit-item-name').value = game.name || '';
-  document.getElementById('edit-item-players').value = game.players || '';
-  document.getElementById('edit-item-playtime').value = game.playtime || '';
-  document.getElementById('edit-item-genre').value = game.genre || '';
-  document.getElementById('edit-item-condition').value = game.condition || '';
+  const bin=activeList().find(b=>b.id===activeBinId); const game=(bin?.items||[]).find(g=>g.id===gameId); if(!game) return;
+  editingGameId=gameId;
+  document.getElementById('edit-item-name').value=game.name||'';
+  document.getElementById('edit-item-players').value=game.players||'';
+  document.getElementById('edit-item-playtime').value=game.playtime||'';
+  document.getElementById('edit-item-genre').value=game.genre||'';
+  document.getElementById('edit-item-condition').value=game.condition||'';
   document.getElementById('edit-modal').classList.add('open');
-  setTimeout(() => document.getElementById('edit-item-name').select(), 50);
-}
-window.closeEditModal = function() { document.getElementById('edit-modal').classList.remove('open'); editingGameId = null; }
-window.saveEditGame = async function() {
-  const name = document.getElementById('edit-item-name').value.trim();
-  if (!name) return;
-  const bin = activeList().find(b => b.id === activeBinId);
-  if (!bin) return;
-  const newItems = (bin.items || []).map(g => g.id === editingGameId ? {
-    ...g,
-    name,
-    players: document.getElementById('edit-item-players').value.trim(),
-    playtime: document.getElementById('edit-item-playtime').value.trim(),
-    genre: document.getElementById('edit-item-genre').value,
-    condition: document.getElementById('edit-item-condition').value,
-  } : g);
-  closeEditModal();
-  setSyncStatus('syncing');
-  await updateDoc(doc(collection(db, activeCollection), activeBinId), { items: newItems });
-  setSyncStatus('synced');
-  renderItems();
-}
+  setTimeout(()=>document.getElementById('edit-item-name').select(),50);
+};
+window.closeEditModal=function(){document.getElementById('edit-modal').classList.remove('open');editingGameId=null;};
+window.saveEditGame=async function(){
+  const name=document.getElementById('edit-item-name').value.trim(); if(!name) return;
+  const bin=activeList().find(b=>b.id===activeBinId); if(!bin) return;
+  const newItems=(bin.items||[]).map(g=>g.id===editingGameId?{...g,name,players:document.getElementById('edit-item-players').value.trim(),playtime:document.getElementById('edit-item-playtime').value.trim(),genre:document.getElementById('edit-item-genre').value,condition:document.getElementById('edit-item-condition').value}:g);
+  closeEditModal(); setSyncStatus('syncing');
+  await updateDoc(doc(collection(db,activeCollection),activeBinId),{items:newItems});
+  setSyncStatus('synced'); renderItems();
+};
 
-// ─── OVERVIEW ─────────────────────────────────────────────────
+// ── OVERVIEW ─────────────────────────────────────────────────
 function renderOverview() {
-  const panel = document.getElementById('overview-grid');
-  if (!panel) return;
-  const allGames = [...bins, ...shelves].flatMap(b => b.items || []);
-  const totalContainers = bins.length + shelves.length;
-  const totalGames = allGames.length;
-  const checkedOut = allGames.filter(g => g.checkedOut).length;
-  const genres = {};
-  allGames.forEach(g => { if (g.genre) genres[g.genre] = (genres[g.genre] || 0) + 1; });
-  const topGenre = Object.entries(genres).sort((a,b) => b[1]-a[1])[0];
-  const conditions = { mint: 0, good: 0, fair: 0, poor: 0 };
-  allGames.forEach(g => { if (g.condition && conditions[g.condition] !== undefined) conditions[g.condition]++; });
-  const topCond = Object.entries(conditions).sort((a,b) => b[1]-a[1]).find(([,v]) => v > 0);
-  const allContainers = [...bins, ...shelves].map(b => ({ name: b.name, count: (b.items||[]).length }));
-  const topContainer = allContainers.length > 0 ? allContainers.reduce((a,b) => b.count > a.count ? b : a, allContainers[0]) : null;
-
-  function stat(label, value, sub, cls) {
-    return '<div class="stat-item ' + (cls||'') + '">' +
-      '<div class="stat-label">' + label + '</div>' +
-      '<div class="stat-value">' + value + '</div>' +
-      (sub ? '<div class="stat-sub">' + sub + '</div>' : '') +
-      '</div>';
-  }
-  panel.innerHTML =
-    stat('Locations',   totalContainers, bins.length + ' bin' + (bins.length !== 1 ? 's' : '') + ' · ' + shelves.length + ' shelf/cab', 'row-first') +
-    stat('Games',       totalGames, totalGames + ' total', '') +
-    stat('Checked Out', checkedOut, checkedOut === 0 ? 'all in' : 'currently out', '') +
-    stat('Checked In',  totalGames - checkedOut, 'available', 'row-last') +
-    '<div class="stat-divider"></div>' +
-    stat('Top Genre',   topGenre ? topGenre[0] : '—', topGenre ? topGenre[1] + ' games' : '', 'row-first row2') +
-    stat('Most Games',  topContainer ? topContainer.name : '—', topContainer ? topContainer.count + ' games' : '', 'row2') +
-    stat('Condition',   topCond ? topCond[0].charAt(0).toUpperCase()+topCond[0].slice(1) : '—', topCond ? 'most common' : 'none logged', 'row2') +
-    stat('Mint/Good',   conditions.mint + conditions.good, 'of ' + totalGames + ' games', 'row-last row2');
+  const panel=document.getElementById('overview-grid'); if(!panel) return;
+  const games=allGames(); const total=games.length; const co=games.filter(g=>g.checkedOut).length;
+  const genres={}; games.forEach(g=>{if(g.genre)genres[g.genre]=(genres[g.genre]||0)+1;});
+  const topGenre=Object.entries(genres).sort((a,b)=>b[1]-a[1])[0];
+  const conds={mint:0,good:0,fair:0,poor:0}; games.forEach(g=>{if(conds[g.condition]!==undefined)conds[g.condition]++;});
+  const topCond=Object.entries(conds).sort((a,b)=>b[1]-a[1]).find(([,v])=>v>0);
+  const all=[...bins,...shelves]; const topLoc=all.length?all.reduce((a,b)=>(b.items||[]).length>(a.items||[]).length?b:a,all[0]):null;
+  function stat(l,v,s,c){return '<div class="stat-item '+(c||'')+'"><div class="stat-label">'+l+'</div><div class="stat-value">'+v+'</div>'+(s?'<div class="stat-sub">'+s+'</div>':'')+'</div>';}
+  panel.innerHTML=
+    stat('Locations',bins.length+shelves.length,bins.length+' bin'+(bins.length!==1?'s':'')+' · '+shelves.length+' shelf/cab','row-first')+
+    stat('Games',total,total+' total','')+
+    stat('Checked Out',co,co===0?'all in':'currently out','')+
+    stat('Available',total-co,'checked in','row-last')+
+    '<div class="stat-divider"></div>'+
+    stat('Top Genre',topGenre?topGenre[0]:'—',topGenre?topGenre[1]+' games':'','row-first row2')+
+    stat('Most Games',topLoc?topLoc.name:'—',topLoc?(topLoc.items||[]).length+' games':'','row2')+
+    stat('Condition',topCond?topCond[0].charAt(0).toUpperCase()+topCond[0].slice(1):'—',topCond?'most common':'none logged','row2')+
+    stat('Mint/Good',conds.mint+conds.good,'of '+total+' games','row-last row2');
 }
 
-// ─── SEARCH ───────────────────────────────────────────────────
-function similarity(a, b) {
-  a = a.toLowerCase().replace(/[^a-z0-9]/g,'');
-  b = b.toLowerCase().replace(/[^a-z0-9]/g,'');
-  if (a === b) return 1;
-  if (a.includes(b) || b.includes(a)) return 0.85;
-  const bigrams = s => { const bg=new Set(); for(let i=0;i<s.length-1;i++) bg.add(s[i]+s[i+1]); return bg; };
-  const ba=bigrams(a), bb=bigrams(b); let inter=0; ba.forEach(bg=>{if(bb.has(bg))inter++;});
+// ── SEARCH ───────────────────────────────────────────────────
+function similarity(a,b){
+  a=a.toLowerCase().replace(/[^a-z0-9]/g,''); b=b.toLowerCase().replace(/[^a-z0-9]/g,'');
+  if(a===b)return 1; if(a.includes(b)||b.includes(a))return 0.85;
+  const bg=s=>{const r=new Set();for(let i=0;i<s.length-1;i++)r.add(s[i]+s[i+1]);return r;};
+  const ba=bg(a),bb=bg(b);let inter=0;ba.forEach(x=>{if(bb.has(x))inter++;});
   return (2*inter)/((ba.size+bb.size)||1);
 }
-
-function highlight(str, query) {
-  if (!query) return esc(str);
-  const idx = str.toLowerCase().indexOf(query.toLowerCase());
-  if (idx < 0) return esc(str);
-  return esc(str.slice(0, idx)) + '<mark>' + esc(str.slice(idx, idx + query.length)) + '</mark>' + esc(str.slice(idx + query.length));
+function highlight(str,q){
+  if(!q)return esc(str); const idx=str.toLowerCase().indexOf(q.toLowerCase()); if(idx<0)return esc(str);
+  return esc(str.slice(0,idx))+'<mark>'+esc(str.slice(idx,idx+q.length))+'</mark>'+esc(str.slice(idx+q.length));
 }
-
-window.onSearch = function() {
-  const q = document.getElementById('search-input').value.trim();
-  const resultsEl = document.getElementById('search-results');
-  const countEl   = document.getElementById('search-count');
-  if (!q) { resultsEl.innerHTML = ''; countEl.textContent = ''; return; }
-  const results = [];
-  bins.forEach((bin, idx) => {
-    (bin.items || []).forEach(g => {
-      const score = similarity(q, g.name);
-      if (score >= 0.45 || g.name.toLowerCase().includes(q.toLowerCase()) || (g.genre||'').toLowerCase().includes(q.toLowerCase())) {
-        results.push({ game: g, bin, binIdx: idx, col: 'bins', score: Math.max(score, g.name.toLowerCase().includes(q.toLowerCase()) ? 0.9 : 0) });
-      }
-    });
-  });
-  shelves.forEach((shelf, idx) => {
-    (shelf.items || []).forEach(g => {
-      const score = similarity(q, g.name);
-      if (score >= 0.45 || g.name.toLowerCase().includes(q.toLowerCase()) || (g.genre||'').toLowerCase().includes(q.toLowerCase())) {
-        results.push({ game: g, bin: shelf, binIdx: idx, col: 'shelves', shelfType: shelf.shelfType, score: Math.max(score, g.name.toLowerCase().includes(q.toLowerCase()) ? 0.9 : 0) });
-      }
-    });
-  });
-  results.sort((a,b) => b.score - a.score);
-  countEl.textContent = results.length + ' result' + (results.length !== 1 ? 's' : '');
-  if (results.length === 0) {
-    resultsEl.innerHTML = '<div class="search-empty">No games matching "' + esc(q) + '"</div>';
-    return;
-  }
-  resultsEl.innerHTML = results.map(({ game: g, bin, binIdx, col, shelfType }) => {
-    const metaParts = [];
-    if (g.players) metaParts.push(g.players + ' players');
-    if (g.playtime) metaParts.push(g.playtime);
-    if (g.genre) metaParts.push(g.genre);
-    const typeEmoji = col === 'shelves' ? (shelfType === 'cabinet' ? '🗄' : '📚') : '📦';
-    return '<div class="search-result-row" onclick="showDetail(\'' + bin.id + '\',\'' + col + '\')">' +
-      '<div><div class="search-result-name">' + highlight(g.name, q) + '</div>' +
-      '<div class="search-result-meta">' + metaParts.map(esc).join(' · ') + '</div></div>' +
-      '<div style="text-align:right">' +
-        '<div class="search-result-bin">' + typeEmoji + ' #' + (binIdx+1) + ' ' + esc(bin.name) + '</div>' +
-        '<div class="search-result-status">' + (g.checkedOut ? '<span class="co-badge">📤 ' + esc(g.checkedOut.who) + '</span>' : '<span class="in-badge">✓ In</span>') + '</div>' +
-      '</div></div>';
+window.onSearch=function(){
+  const q=document.getElementById('search-input').value.trim();
+  const res=document.getElementById('search-results'); const cnt=document.getElementById('search-count');
+  if(!q){res.innerHTML='';cnt.textContent='';return;}
+  const results=allGames().filter(g=>{
+    const score=similarity(q,g.name);
+    return score>=0.45||g.name.toLowerCase().includes(q.toLowerCase())||(g.genre||'').toLowerCase().includes(q.toLowerCase());
+  }).map(g=>({...g,score:Math.max(similarity(q,g.name),g.name.toLowerCase().includes(q.toLowerCase())?0.9:0)}))
+    .sort((a,b)=>b.score-a.score);
+  cnt.textContent=results.length+' result'+(results.length!==1?'s':'');
+  if(!results.length){res.innerHTML='<div class="search-empty">No games matching "'+esc(q)+'"</div>';return;}
+  res.innerHTML=results.map(g=>{
+    const meta=[g.players&&g.players+' players',g.playtime,g.genre].filter(Boolean).join(' · ');
+    const isShelf=g.col==='shelves'; const locEmoji=isShelf?(g.shelfType==='cabinet'?'🗄':'📚'):'📦';
+    return '<div class="search-result-row" onclick="showDetail(\''+g.containerId+'\',\''+g.col+'\')">'
+      +'<div><div class="search-result-name">'+highlight(g.name,q)+'</div><div class="search-result-meta">'+esc(meta)+'</div></div>'
+      +'<div style="text-align:right"><div class="search-result-bin">'+locEmoji+' #'+(g.containerIdx+1)+' '+esc(g.containerName)+'</div>'
+      +'<div style="font-size:0.72rem;margin-top:2px">'+(g.checkedOut?'<span class="co-badge">📤 '+esc(g.checkedOut.who)+'</span>':'<span class="in-badge">✓ In</span>')+'</div></div></div>';
   }).join('');
-}
+};
 
-// ─── DUPLICATE WARNING ────────────────────────────────────────
-window.checkDuplicate = function() {
-  const name = document.getElementById('new-item-name').value.trim();
-  const warn = document.getElementById('dup-warning');
-  if (name.length < 2) { warn.classList.remove('visible'); return; }
-  const matches = [];
-  [...bins, ...shelves].forEach(bin => {
-    (bin.items || []).forEach(g => {
-      if (similarity(name, g.name) >= 0.75) matches.push({ binName: bin.name, gameName: g.name });
-    });
-  });
-  if (matches.length > 0) {
-    warn.innerHTML = '⚠ Similar game already logged: ' + matches.slice(0,3).map(m => '<strong>' + esc(m.gameName) + '</strong> in <em>' + esc(m.binName) + '</em>').join(', ');
+// ── DUPLICATE WARNING ────────────────────────────────────────
+window.checkDuplicate=function(){
+  const name=document.getElementById('new-item-name').value.trim(); const warn=document.getElementById('dup-warning');
+  if(name.length<2){warn.classList.remove('visible');return;}
+  const matches=allGames().filter(g=>similarity(name,g.name)>=0.75).slice(0,3);
+  if(matches.length){
+    warn.innerHTML='⚠ Similar game: '+matches.map(m=>'<strong>'+esc(m.name)+'</strong> in <em>'+esc(m.containerName)+'</em>').join(', ');
     warn.classList.add('visible');
-  } else { warn.classList.remove('visible'); }
-}
+  } else warn.classList.remove('visible');
+};
 
-// ─── QR ───────────────────────────────────────────────────────
-function renderQR() {
-  const el = document.getElementById('qr-code');
-  el.innerHTML = '';
-  const baseURL = window.location.href.split('#')[0];
-  const colKey = activeCollection === 'shelves' ? 'shelf' : 'bin';
-  new QRCode(el, {
-    text: baseURL + '#bin=' + encodeURIComponent(colKey + '|' + activeBinId),
-    width: 160, height: 160,
-    colorDark: '#111111', colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.M
-  });
+// ── QR ───────────────────────────────────────────────────────
+function renderQR(){
+  const el=document.getElementById('qr-code'); el.innerHTML='';
+  const baseURL=window.location.href.split('#')[0];
+  const colKey=activeCollection==='shelves'?'shelf':'bin';
+  new QRCode(el,{text:baseURL+'#bin='+encodeURIComponent(colKey+'|'+activeBinId),width:160,height:160,colorDark:'#111',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
 }
-
-window.printSingleQR = function() {
-  const bin = activeList().find(b => b.id === activeBinId);
-  if (!bin) return;
-  const el = document.getElementById('qr-code');
-  const canvas = el.querySelector('canvas');
-  const imgSrc = canvas ? canvas.toDataURL() : '';
-  const win = window.open('', '_blank');
-  win.document.write('<!DOCTYPE html><html><head><title>' + bin.name.replace(/</g,'&lt;') + ' — QR<\/title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:monospace;padding:20px;display:flex;gap:10px;flex-wrap:wrap}.label-card{border:2px solid #111;border-radius:4px;padding:8px;display:inline-flex;flex-direction:column;align-items:center;gap:4px}.label-name{font-size:0.9rem;font-weight:bold;text-align:center}.qr-img{display:block}@media print{body{padding:6px}}<\/style><\/head><body><div class="label-card"><div class="label-name">#' + (bins.indexOf(bin)+1) + ' ' + bin.name.replace(/</g,'&lt;') + '<\/div>' + (imgSrc ? '<img class="qr-img" src="' + imgSrc + '" style="width:160px;height:160px" \/>' : '') + '<\/div><scr'+'ipt>window.onload=()=>window.print();<\/scr'+'ipt><\/body><\/html>');
+window.printSingleQR=function(){
+  const bin=activeList().find(b=>b.id===activeBinId); if(!bin) return;
+  const canvas=document.getElementById('qr-code').querySelector('canvas'); const imgSrc=canvas?canvas.toDataURL():'';
+  const win=window.open('','_blank');
+  win.document.write('<!DOCTYPE html><html><head><title>QR Label<\/title><style>body{font-family:monospace;padding:20px}.label-card{border:2px solid #111;border-radius:4px;padding:8px;display:inline-flex;flex-direction:column;align-items:center;gap:4px}.label-name{font-size:0.9rem;font-weight:bold;text-align:center}<\/style><\/head><body><div class="label-card"><div class="label-name">#'+(activeList().indexOf(bin)+1)+' '+bin.name.replace(/</g,'&lt;')+'<\/div>'+(imgSrc?'<img src="'+imgSrc+'" style="width:160px;height:160px"\/>':'')+'<\/div><scr'+'ipt>window.onload=()=>window.print();<\/scr'+'ipt><\/body><\/html>');
   win.document.close();
-}
-
-let selectedQRSize = 80;
-window.selectQRSize = function(radio) {
-  selectedQRSize = parseInt(radio.value);
-  document.querySelectorAll('.size-option').forEach(el => el.classList.remove('selected'));
-  radio.closest('.size-option').classList.add('selected');
-}
-window.openQRSizeModal = function() { document.getElementById('qr-size-modal').classList.add('open'); }
-window.closeQRSizeModal = function() { document.getElementById('qr-size-modal').classList.remove('open'); }
-window.confirmPrintAllQR = function() { closeQRSizeModal(); printAllQRSized(selectedQRSize); }
-window.printAllQRSized = function(qrSize) {
-  if (bins.length === 0 && shelves.length === 0) { alert('No bins or shelves to print yet!'); return; }
-  const baseURL = window.location.href.split('#')[0];
-  const offscreen = document.createElement('div');
-  offscreen.style.cssText = 'position:fixed;left:-9999px;top:0;';
-  document.body.appendChild(offscreen);
-  const allContainers = [
-    ...bins.map((b, i) => ({ item: b, num: i+1, colKey: 'bin' })),
-    ...shelves.map((s, i) => ({ item: s, num: i+1, colKey: 'shelf' }))
-  ];
-  const qrData = allContainers.map(({ item: bin, num, colKey }) => {
-    const wrapper = document.createElement('div');
-    offscreen.appendChild(wrapper);
-    new QRCode(wrapper, { text: baseURL + '#bin=' + encodeURIComponent(colKey + '|' + bin.id), width: qrSize, height: qrSize, colorDark: '#111', colorLight: '#fff', correctLevel: QRCode.CorrectLevel.M });
-    return { bin, wrapper, num, colKey };
+};
+let selectedQRSize=80;
+window.selectQRSize=function(r){selectedQRSize=parseInt(r.value);document.querySelectorAll('.size-option').forEach(e=>e.classList.remove('selected'));r.closest('.size-option').classList.add('selected');};
+window.openQRSizeModal=function(){document.getElementById('qr-size-modal').classList.add('open');};
+window.closeQRSizeModal=function(){document.getElementById('qr-size-modal').classList.remove('open');};
+window.confirmPrintAllQR=function(){closeQRSizeModal();printAllQR(selectedQRSize);};
+window.printAllQR=function(qrSize){
+  const all=[...bins.map((b,i)=>({item:b,num:i+1,colKey:'bin'})),...shelves.map((s,i)=>({item:s,num:i+1,colKey:'shelf'}))];
+  if(!all.length){alert('No bins or shelves yet!');return;}
+  const baseURL=window.location.href.split('#')[0];
+  const off=document.createElement('div');off.style.cssText='position:fixed;left:-9999px;top:0;';document.body.appendChild(off);
+  const qrData=all.map(({item,num,colKey})=>{
+    const w=document.createElement('div');off.appendChild(w);
+    new QRCode(w,{text:baseURL+'#bin='+encodeURIComponent(colKey+'|'+item.id),width:qrSize,height:qrSize,colorDark:'#111',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
+    return {item,num,colKey,w};
   });
-  setTimeout(() => {
-    const cards = qrData.map(({ bin, wrapper, num, colKey }) => {
-      const canvas = wrapper.querySelector('canvas');
-      const imgSrc = canvas ? canvas.toDataURL() : '';
-      const typePrefix = colKey === 'shelf' ? (bin.shelfType === 'cabinet' ? '🗄 ' : '📚 ') : '📦 ';
-      return '<div class="label-card"><div class="label-name">' + typePrefix + '#' + num + ' ' + bin.name.replace(/</g,'&lt;') + '<\/div>' + (imgSrc ? '<img class="qr-img" src="' + imgSrc + '" style="width:' + qrSize + 'px;height:' + qrSize + 'px" \/>' : '') + '<\/div>';
+  setTimeout(()=>{
+    const cards=qrData.map(({item,num,colKey,w})=>{
+      const canvas=w.querySelector('canvas'); const src=canvas?canvas.toDataURL():'';
+      const prefix=colKey==='shelf'?(item.shelfType==='cabinet'?'🗄 ':'📚 '):'📦 ';
+      return '<div class="label-card"><div class="label-name">'+prefix+'#'+num+' '+item.name.replace(/</g,'&lt;')+'<\/div>'+(src?'<img src="'+src+'" style="width:'+qrSize+'px;height:'+qrSize+'px"\/>':'')+'<\/div>';
     }).join('');
-    const win = window.open('', '_blank');
-    win.document.write('<!DOCTYPE html><html><head><title>Game Bin QR Labels<\/title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:monospace;background:#fff;padding:12px}.grid{display:flex;flex-wrap:wrap;gap:10px}.label-card{border:2px solid #111;border-radius:4px;padding:6px;display:inline-flex;flex-direction:column;align-items:center;gap:4px;break-inside:avoid;page-break-inside:avoid;width:fit-content}.label-name{font-size:0.85rem;font-weight:bold;text-align:center}.qr-img{display:block}@media print{body{padding:6px}.grid{gap:8px}}<\/style><\/head><body><div class="grid">' + cards + '<\/div><scr'+'ipt>window.onload=()=>window.print();<\/scr'+'ipt><\/body><\/html>');
-    win.document.close();
-    document.body.removeChild(offscreen);
-  }, 300);
-}
+    const win=window.open('','_blank');
+    win.document.write('<!DOCTYPE html><html><head><title>QR Labels<\/title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:monospace;background:#fff;padding:12px}.grid{display:flex;flex-wrap:wrap;gap:10px}.label-card{border:2px solid #111;border-radius:4px;padding:6px;display:inline-flex;flex-direction:column;align-items:center;gap:4px;break-inside:avoid;page-break-inside:avoid;width:fit-content}.label-name{font-size:0.85rem;font-weight:bold;text-align:center}@media print{body{padding:6px}}<\/style><\/head><body><div class="grid">'+cards+'<\/div><scr'+'ipt>window.onload=()=>window.print();<\/scr'+'ipt><\/body><\/html>');
+    win.document.close();document.body.removeChild(off);
+  },300);
+};
 
-// ─── CSV EXPORT ───────────────────────────────────────────────
-window.exportCSV = function() {
-  if (bins.length === 0 && shelves.length === 0) { alert('Nothing to export yet!'); return; }
-  const rows = [['Location', 'Type', 'Game', 'Players', 'Playtime', 'Genre', 'Condition', 'Status', 'Checked Out By', 'Checkout Notes', 'Checkout Date']];
-  bins.forEach(bin => {
-    if (!bin.items || bin.items.length === 0) {
-      rows.push([bin.name, 'Bin', '(empty)', '', '', '', '', '', '', '', '']);
-    } else {
-      bin.items.forEach(g => {
-        const co = g.checkedOut;
-        rows.push([bin.name, 'Bin', g.name, g.players||'', g.playtime||'', g.genre||'', g.condition||'', co ? 'Out' : 'In', co ? co.who : '', co ? co.notes||'' : '', co && co.timestamp ? new Date(co.timestamp).toLocaleDateString('en-US') : '']);
-      });
-    }
+// ── CSV EXPORT ───────────────────────────────────────────────
+window.exportCSV=function(){
+  if(!bins.length&&!shelves.length){alert('Nothing to export yet!');return;}
+  const rows=[['Location','Type','Game','Players','Playtime','Genre','Condition','Status','Checked Out By','Checkout Notes','Checkout Date']];
+  [...bins.map(b=>({...b,type:'Bin'})),...shelves.map(s=>({...s,type:s.shelfType==='cabinet'?'Cabinet':'Shelf'}))].forEach(c=>{
+    if(!(c.items||[]).length){rows.push([c.name,c.type,'(empty)','','','','','','','','']);return;}
+    c.items.forEach(g=>{const co=g.checkedOut;rows.push([c.name,c.type,g.name,g.players||'',g.playtime||'',g.genre||'',g.condition||'',co?'Out':'In',co?co.who:'',co?co.notes||'':'',co&&co.timestamp?new Date(co.timestamp).toLocaleDateString('en-US'):'']).toString();});
+    rows.push([c.name,c.type,'(empty)','','','','','','','','']); // not ideal but placeholder
   });
-  shelves.forEach(shelf => {
-    const typeLabel = shelf.shelfType === 'cabinet' ? 'Cabinet' : 'Shelf';
-    if (!shelf.items || shelf.items.length === 0) {
-      rows.push([shelf.name, typeLabel, '(empty)', '', '', '', '', '', '', '', '']);
-    } else {
-      shelf.items.forEach(g => {
-        const co = g.checkedOut;
-        rows.push([shelf.name, typeLabel, g.name, g.players||'', g.playtime||'', g.genre||'', g.condition||'', co ? 'Out' : 'In', co ? co.who : '', co ? co.notes||'' : '', co && co.timestamp ? new Date(co.timestamp).toLocaleDateString('en-US') : '']);
-      });
-    }
+  // rebuild properly
+  const rows2=[['Location','Type','Game','Players','Playtime','Genre','Condition','Status','Checked Out By','Checkout Notes','Checkout Date']];
+  [...bins.map(b=>({...b,type:'Bin'})),...shelves.map(s=>({...s,type:s.shelfType==='cabinet'?'Cabinet':'Shelf'}))].forEach(c=>{
+    if(!(c.items||[]).length){rows2.push([c.name,c.type,'(empty)','','','','','','','','']);return;}
+    c.items.forEach(g=>{const co=g.checkedOut;rows2.push([c.name,c.type,g.name,g.players||'',g.playtime||'',g.genre||'',g.condition||'',co?'Out':'In',co?co.who:'',co?co.notes||'':'',co&&co.timestamp?new Date(co.timestamp).toLocaleDateString('en-US'):'']);});
   });
-  const csv = rows.map(r => r.map(cell => '"' + String(cell).replace(/"/g,'""') + '"').join(',')).join('\r\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'game-inventory.csv'; a.click();
-}
+  const csv=rows2.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='game-inventory.csv';a.click();
+};
 
-// ─── IMPORT ───────────────────────────────────────────────────
-window.openImportModal = function() {
-  document.getElementById('import-file').value = '';
-  document.getElementById('import-status').textContent = '';
-  document.getElementById('import-modal').classList.add('open');
-}
-window.closeImportModal = function() { document.getElementById('import-modal').classList.remove('open'); }
-window.doImport = async function() {
-  const file = document.getElementById('import-file').files[0];
-  const status = document.getElementById('import-status');
-  if (!file) { status.textContent = 'Please select a file.'; return; }
-  status.textContent = 'Reading…';
-  try {
+// ── IMPORT ───────────────────────────────────────────────────
+window.openImportModal=function(){document.getElementById('import-file').value='';document.getElementById('import-status').textContent='';document.getElementById('import-modal').classList.add('open');};
+window.closeImportModal=function(){document.getElementById('import-modal').classList.remove('open');};
+window.doImport=async function(){
+  const file=document.getElementById('import-file').files[0]; const status=document.getElementById('import-status');
+  if(!file){status.textContent='Please select a file.';return;} status.textContent='Reading…';
+  try{
     let rows;
-    if (file.name.endsWith('.csv')) {
-      const text = await file.text();
-      rows = text.split(/\r?\n/).map(r => r.split(',').map(c => c.replace(/^"|"$/g,'').replace(/""/g,'"')));
-    } else {
-      const buf = await file.arrayBuffer();
-      const wb = (window._XLSX || XLSX).read(buf, { type: 'array' });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      rows = (window._XLSX || XLSX).utils.sheet_to_json(ws, { header: 1 });
-    }
-    if (rows.length < 2) { status.textContent = 'File appears empty.'; return; }
-    const headers = rows[0].map(h => String(h).toLowerCase().trim());
-    const col = name => headers.indexOf(name);
-    const iCol = col('game') >= 0 ? col('game') : col('item') >= 0 ? col('item') : 0;
-    const binCol = col('bin');
-    const playersCol = col('players');
-    const playtimeCol = col('playtime');
-    const genreCol = col('genre');
-    const condCol = col('condition');
-
-    const binMap = {};
-    rows.slice(1).forEach(row => {
-      const gameName = String(row[iCol] || '').trim();
-      if (!gameName || gameName === '(empty)') return;
-      const binName = binCol >= 0 ? String(row[binCol] || 'Imported').trim() : file.name.replace(/\.[^.]+$/, '');
-      if (!binMap[binName]) binMap[binName] = [];
-      binMap[binName].push({
-        id: uid(),
-        name: gameName,
-        players: playersCol >= 0 ? String(row[playersCol]||'').trim() : '',
-        playtime: playtimeCol >= 0 ? String(row[playtimeCol]||'').trim() : '',
-        genre: genreCol >= 0 ? String(row[genreCol]||'').trim() : '',
-        condition: condCol >= 0 ? String(row[condCol]||'').trim().toLowerCase() : '',
-        checkedOut: null,
-        addedAt: Date.now()
-      });
+    if(file.name.endsWith('.csv')){const text=await file.text();rows=text.split(/\r?\n/).map(r=>r.split(',').map(c=>c.replace(/^"|"$/g,'').replace(/""/g,'"')));}
+    else{const buf=await file.arrayBuffer();const wb=(window._XLSX||XLSX).read(buf,{type:'array'});rows=(window._XLSX||XLSX).utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1});}
+    if(rows.length<2){status.textContent='File appears empty.';return;}
+    const headers=rows[0].map(h=>String(h).toLowerCase().trim());
+    const col=n=>headers.indexOf(n);
+    const iCol=col('game')>=0?col('game'):col('item')>=0?col('item'):0;
+    const binCol=col('bin'); const playersCol=col('players'); const playtimeCol=col('playtime'); const genreCol=col('genre'); const condCol=col('condition');
+    const binMap={};
+    rows.slice(1).forEach(row=>{
+      const name=String(row[iCol]||'').trim(); if(!name||name==='(empty)')return;
+      const binName=binCol>=0?String(row[binCol]||'Imported').trim():file.name.replace(/\.[^.]+$/,'');
+      if(!binMap[binName])binMap[binName]=[];
+      binMap[binName].push({id:uid(),name,players:playersCol>=0?String(row[playersCol]||'').trim():'',playtime:playtimeCol>=0?String(row[playtimeCol]||'').trim():'',genre:genreCol>=0?String(row[genreCol]||'').trim():'',condition:condCol>=0?String(row[condCol]||'').trim().toLowerCase():'',checkedOut:null,addedAt:Date.now()});
     });
-    const binNames = Object.keys(binMap);
-    if (binNames.length === 0) { status.textContent = 'No games found.'; return; }
+    const binNames=Object.keys(binMap); if(!binNames.length){status.textContent='No games found.';return;}
     setSyncStatus('syncing');
-    for (const name of binNames) {
-      const existing = bins.find(b => b.name.toLowerCase() === name.toLowerCase());
-      if (existing) {
-        await updateDoc(doc(collection(db,'bins'), existing.id), { items: [...(existing.items||[]), ...binMap[name]] });
-      } else {
-        await setDoc(doc(collection(db,'bins'), uid()), { name, items: binMap[name], createdAt: Date.now() });
-      }
+    for(const name of binNames){
+      const existing=bins.find(b=>b.name.toLowerCase()===name.toLowerCase());
+      if(existing)await updateDoc(doc(collection(db,'bins'),existing.id),{items:[...(existing.items||[]),...binMap[name]]});
+      else await setDoc(doc(collection(db,'bins'),uid()),{name,items:binMap[name],createdAt:Date.now()});
     }
     setSyncStatus('synced');
-    const totalGames = Object.values(binMap).reduce((s,v) => s+v.length, 0);
-    status.textContent = '✓ Imported ' + totalGames + ' game' + (totalGames !== 1 ? 's' : '') + ' into ' + binNames.length + ' bin' + (binNames.length !== 1 ? 's' : '') + '.';
-    setTimeout(() => closeImportModal(), 1500);
-  } catch(e) {
-    console.error(e);
-    status.textContent = 'Error: ' + e.message;
-  }
-}
+    const tot=Object.values(binMap).reduce((s,v)=>s+v.length,0);
+    status.textContent='✓ Imported '+tot+' game'+(tot!==1?'s':'')+' into '+binNames.length+' bin'+(binNames.length!==1?'s':'')+'.';
+    setTimeout(()=>closeImportModal(),1500);
+  }catch(e){console.error(e);status.textContent='Error: '+e.message;}
+};
 
-// ─── TRASH ────────────────────────────────────────────────────
-let trashItems = [];
-window.openTrashModal = function() { renderTrashList(); document.getElementById('trash-modal').classList.add('open'); }
-window.closeTrashModal = function() { document.getElementById('trash-modal').classList.remove('open'); }
-window.clearTrash = function() { trashItems = []; renderTrashList(); }
-function renderTrashList() {
-  const list = document.getElementById('trash-list');
-  if (trashItems.length === 0) { list.innerHTML = '<div class="trash-empty">Nothing deleted yet this session.</div>'; return; }
-  list.innerHTML = [...trashItems].reverse().map((t, ri) => {
-    const i = trashItems.length - 1 - ri;
-    const ago = Math.round((Date.now() - t.deletedAt) / 1000);
-    const agoStr = ago < 60 ? ago + 's ago' : Math.round(ago/60) + 'm ago';
-    const typeEmoji = t.type === 'container' ? (t.col === 'shelves' ? (t.data.shelfType === 'cabinet' ? '🗄' : '📚') : '📦') : '🎲';
-    const label = t.type === 'container' ? typeEmoji + ' ' + esc(t.containerName) : typeEmoji + ' ' + esc(t.data.name) + ' <span style="color:var(--muted)">in ' + esc(t.containerName) + '</span>';
-    return '<div class="trash-item"><div class="trash-item-info"><div class="trash-item-name">' + label + '</div>' +
-      '<div class="trash-item-meta">Deleted ' + agoStr + '</div></div>' +
-      '<button onclick="restoreTrash(' + i + ')" style="padding:6px 12px;font-size:0.75rem">Restore</button></div>';
+// ── TRASH ────────────────────────────────────────────────────
+let trashItems=[];
+window.openTrashModal=function(){renderTrashList();document.getElementById('trash-modal').classList.add('open');};
+window.closeTrashModal=function(){document.getElementById('trash-modal').classList.remove('open');};
+window.clearTrash=function(){trashItems=[];renderTrashList();};
+function renderTrashList(){
+  const list=document.getElementById('trash-list');
+  if(!trashItems.length){list.innerHTML='<div class="trash-empty">Nothing deleted this session.</div>';return;}
+  list.innerHTML=[...trashItems].reverse().map((t,ri)=>{
+    const i=trashItems.length-1-ri; const ago=Math.round((Date.now()-t.deletedAt)/1000);
+    const agoStr=ago<60?ago+'s ago':Math.round(ago/60)+'m ago';
+    const emoji=t.type==='container'?(t.col==='shelves'?(t.data?.shelfType==='cabinet'?'🗄':'📚'):'📦'):'🎲';
+    const label=t.type==='container'?emoji+' '+esc(t.containerName):emoji+' '+esc(t.data.name)+' <span style="color:var(--muted)">in '+esc(t.containerName)+'</span>';
+    return '<div class="trash-item"><div class="trash-item-info"><div class="trash-item-name">'+label+'</div><div class="trash-item-meta">Deleted '+agoStr+'</div></div><button onclick="restoreTrash('+i+')" style="padding:6px 12px;font-size:0.75rem">Restore</button></div>';
   }).join('');
 }
-window.restoreTrash = async function(idx) {
-  const t = trashItems[idx]; if (!t) return;
-  const col = t.col || 'bins';
-  const list = col === 'shelves' ? shelves : bins;
+window.restoreTrash=async function(idx){
+  const t=trashItems[idx]; if(!t) return;
+  const col=t.col||'bins'; const list=col==='shelves'?shelves:bins;
   setSyncStatus('syncing');
-  if (t.type === 'container') {
-    const id = uid(); const d = {...t.data}; delete d.id;
-    await setDoc(doc(collection(db, col), id), { ...d, createdAt: Date.now() });
-  } else {
-    const bin = list.find(b => b.name === t.containerName);
-    if (!bin) { alert('Original location "' + t.containerName + '" no longer exists.'); setSyncStatus('synced'); return; }
-    await updateDoc(doc(collection(db, col), bin.id), { items: [...(bin.items||[]), t.data] });
-  }
-  setSyncStatus('synced'); trashItems.splice(idx, 1); renderTrashList();
-}
+  if(t.type==='container'){const id=uid();const d={...t.data};delete d.id;await setDoc(doc(collection(db,col),id),{...d,createdAt:Date.now()});}
+  else{const bin=list.find(b=>b.name===t.containerName);if(!bin){alert('Original location no longer exists.');setSyncStatus('synced');return;}await updateDoc(doc(collection(db,col),bin.id),{items:[...(bin.items||[]),t.data]});}
+  setSyncStatus('synced');trashItems.splice(idx,1);renderTrashList();
+};
 
-// ─── RENUMBER ─────────────────────────────────────────────────
-let renumberOrderBins = [], renumberOrderShelves = [];
-window.openRenumberModal = function() {
-  renumberOrderBins = bins.map(b => b.id);
-  renumberOrderShelves = shelves.map(s => s.id);
-  renderRenumberList();
-  document.getElementById('renumber-modal').classList.add('open');
+// ── RENUMBER ─────────────────────────────────────────────────
+let rnBins=[],rnShelves=[];
+window.openRenumberModal=function(){rnBins=bins.map(b=>b.id);rnShelves=shelves.map(s=>s.id);renderRenumberLists();document.getElementById('renumber-modal').classList.add('open');};
+window.closeRenumberModal=function(){document.getElementById('renumber-modal').classList.remove('open');};
+function makeRenItem(id,idx,list,col){
+  const item=list.find(b=>b.id===id);
+  const accent=col==='shelves'?'var(--shelf)':'var(--accent)';
+  return '<div class="renumber-item" data-id="'+id+'" data-col="'+col+'" draggable="true" ondragstart="rnDragStart(event)" ondragover="rnDragOver(event)" ondrop="rnDrop(event,\''+col+'\')" style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:10px 12px;cursor:grab"><span style="font-family:Bebas Neue,sans-serif;color:'+accent+';font-size:1rem;width:28px;flex-shrink:0">#'+(idx+1)+'</span><span style="font-size:0.85rem;flex:1">'+esc(item?item.name:id)+'</span><span style="color:var(--muted)">⠿</span></div>';
 }
-window.closeRenumberModal = function() { document.getElementById('renumber-modal').classList.remove('open'); }
-function makeRenumberItem(id, idx, list, col) {
-  const item = list.find(b => b.id === id);
-  const accentColor = col === 'shelves' ? '#a78bfa' : 'var(--accent)';
-  return '<div class="renumber-item" data-id="' + id + '" data-col="' + col + '" draggable="true" ondragstart="rDragStart(event)" ondragover="rDragOver(event)" ondrop="rDrop(event,\'' + col + '\')" style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:4px;padding:10px 12px;cursor:grab"><span style="font-family:Bebas Neue,sans-serif;color:' + accentColor + ';font-size:1rem;width:28px;flex-shrink:0">#' + (idx+1) + '<\/span><span style="font-size:0.85rem;flex:1">' + esc(item ? item.name : id) + '<\/span><span style="color:var(--muted)">⠿<\/span><\/div>';
+function renderRenumberLists(){
+  document.getElementById('renumber-list-bins').innerHTML=rnBins.map((id,i)=>makeRenItem(id,i,bins,'bins')).join('')||'<div style="font-size:0.75rem;color:var(--muted);padding:8px">No bins yet.</div>';
+  document.getElementById('renumber-list-shelves').innerHTML=rnShelves.map((id,i)=>makeRenItem(id,i,shelves,'shelves')).join('')||'<div style="font-size:0.75rem;color:var(--muted);padding:8px">No shelves yet.</div>';
 }
-function renderRenumberList() {
-  document.getElementById('renumber-list-bins').innerHTML = renumberOrderBins.map((id, idx) => makeRenumberItem(id, idx, bins, 'bins')).join('') || '<div style="font-size:0.75rem;color:var(--muted);padding:8px">No bins yet.</div>';
-  document.getElementById('renumber-list-shelves').innerHTML = renumberOrderShelves.map((id, idx) => makeRenumberItem(id, idx, shelves, 'shelves')).join('') || '<div style="font-size:0.75rem;color:var(--muted);padding:8px">No shelves or cabinets yet.</div>';
-}
-let dragSrcId = null, dragSrcCol = null;
-window.rDragStart = function(e) { dragSrcId = e.currentTarget.dataset.id; dragSrcCol = e.currentTarget.dataset.col; e.dataTransfer.effectAllowed = 'move'; }
-window.rDragOver  = function(e) { e.preventDefault(); }
-window.rDrop = function(e, col) {
-  e.preventDefault();
-  const t = e.currentTarget.dataset.id;
-  if (!dragSrcId || dragSrcId === t || dragSrcCol !== col) return;
-  const order = col === 'shelves' ? renumberOrderShelves : renumberOrderBins;
-  const si = order.indexOf(dragSrcId), ti = order.indexOf(t);
-  order.splice(si, 1); order.splice(ti, 0, dragSrcId);
-  renderRenumberList();
-}
-window.saveRenumber = async function() {
-  setSyncStatus('syncing');
-  const now = Date.now();
-  for (let i = 0; i < renumberOrderBins.length; i++) {
-    await updateDoc(doc(collection(db,'bins'), renumberOrderBins[i]), { createdAt: now + i });
-  }
-  for (let i = 0; i < renumberOrderShelves.length; i++) {
-    await updateDoc(doc(collection(db,'shelves'), renumberOrderShelves[i]), { createdAt: now + i });
-  }
-  setSyncStatus('synced');
-  closeRenumberModal();
-}
+let rnDragId=null,rnDragCol=null;
+window.rnDragStart=function(e){rnDragId=e.currentTarget.dataset.id;rnDragCol=e.currentTarget.dataset.col;e.dataTransfer.effectAllowed='move';};
+window.rnDragOver=function(e){e.preventDefault();};
+window.rnDrop=function(e,col){
+  e.preventDefault();const t=e.currentTarget.dataset.id;
+  if(!rnDragId||rnDragId===t||rnDragCol!==col)return;
+  const order=col==='shelves'?rnShelves:rnBins;
+  const si=order.indexOf(rnDragId),ti=order.indexOf(t);
+  order.splice(si,1);order.splice(ti,0,rnDragId);
+  renderRenumberLists();
+};
+window.saveRenumber=async function(){
+  setSyncStatus('syncing');const now=Date.now();
+  for(let i=0;i<rnBins.length;i++)await updateDoc(doc(collection(db,'bins'),rnBins[i]),{createdAt:now+i});
+  for(let i=0;i<rnShelves.length;i++)await updateDoc(doc(collection(db,'shelves'),rnShelves[i]),{createdAt:now+i});
+  setSyncStatus('synced');closeRenumberModal();
+};
 
-// ─── UTILS ────────────────────────────────────────────────────
-window.esc = function(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function esc(str) { return window.esc(str); }
+// ── KEYBOARD SHORTCUTS ───────────────────────────────────────
+document.getElementById('new-bin-name').addEventListener('keydown',e=>{if(e.key==='Enter')addBin();});
+document.getElementById('new-shelf-name').addEventListener('keydown',e=>{if(e.key==='Enter')addShelf();});
+document.getElementById('search-input').addEventListener('keydown',e=>{if(e.key==='Escape'){e.target.value='';onSearch();}});
+document.getElementById('rename-input').addEventListener('keydown',e=>{if(e.key==='Enter')confirmRename();if(e.key==='Escape')closeRenameModal();});
+document.getElementById('edit-item-name').addEventListener('keydown',e=>{if(e.key==='Enter')saveEditGame();if(e.key==='Escape')closeEditModal();});
+document.getElementById('checkout-who').addEventListener('keydown',e=>{if(e.key==='Enter')confirmCheckout();if(e.key==='Escape')closeCheckoutModal();});
+document.getElementById('games-sort-field').addEventListener('change',()=>{sortField=document.getElementById('games-sort-field').value;updateSortDirBtn();renderGamesTab();});
 
-// ─── KEYBOARD SHORTCUTS ───────────────────────────────────────
-document.getElementById('new-bin-name').addEventListener('keydown', e => { if (e.key === 'Enter') addBin(); });
-document.getElementById('new-shelf-name').addEventListener('keydown', e => { if (e.key === 'Enter') addShelf(); });
-document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Escape') { e.target.value = ''; onSearch(); } });
-document.getElementById('rename-input').addEventListener('keydown', e => { if (e.key === 'Enter') confirmRename(); if (e.key === 'Escape') closeRenameModal(); });
-document.getElementById('edit-item-name').addEventListener('keydown', e => { if (e.key === 'Enter') saveEditGame(); if (e.key === 'Escape') closeEditModal(); });
-document.getElementById('checkout-who').addEventListener('keydown', e => { if (e.key === 'Enter') confirmCheckout(); if (e.key === 'Escape') closeCheckoutModal(); });
-
-// ─── INIT ─────────────────────────────────────────────────────
+// ── INIT ─────────────────────────────────────────────────────
 showView('main-view');
-
 </script>
 </body>
 </html>
