@@ -1118,21 +1118,23 @@ const db  = getFirestore(app);
 
 // ─── STATE ────────────────────────────────────────────────────
 let bins = [];
-let shelves = [];          // shelves & cabinets
+let shelves = [];
 let activeBinId = null;
 let activeCollection = 'bins'; // 'bins' or 'shelves'
 let unsubscribeBins = null;
 let unsubscribeShelves = null;
-let loadedBins = false, loadedShelves = false;
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
-function checkAllLoaded() {
-  if (!loadedBins || !loadedShelves) return;
+// ─── FIRESTORE LISTENERS ──────────────────────────────────────
+unsubscribeBins = onSnapshot(collection(db, 'bins'), (snapshot) => {
+  bins = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+  bins.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
   document.getElementById('loading-overlay').style.display = 'none';
   const hash = window.location.hash;
   if (hash.startsWith('#bin=')) {
-    const [colKey, id] = decodeURIComponent(hash.slice(5)).split('|');
+    const parts = decodeURIComponent(hash.slice(5)).split('|');
+    const colKey = parts[0], id = parts[1] || parts[0];
     renderScanView(colKey === 'shelf' ? shelves : bins, id);
     showView('scan-view');
   } else {
@@ -1141,34 +1143,27 @@ function checkAllLoaded() {
     renderOverview();
     renderCheckedOut();
     onSearch();
-    if (document.getElementById('detail-view').classList.contains('active') && activeBinId) {
-      renderItems();
-    }
-  }
-}
-
-// ─── FIRESTORE LISTENERS ──────────────────────────────────────
-unsubscribeBins = onSnapshot(collection(db, 'bins'), (snapshot) => {
-  bins = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-  bins.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  loadedBins = true;
-  checkAllLoaded();
-  if (loadedShelves) {
-    renderBins(); renderOverview(); renderCheckedOut(); onSearch();
     if (document.getElementById('detail-view').classList.contains('active') && activeBinId && activeCollection === 'bins') renderItems();
   }
-}, (err) => { console.error(err); setSyncStatus('error'); loadedBins = true; checkAllLoaded(); });
+}, (err) => {
+  console.error(err);
+  setSyncStatus('error');
+  document.getElementById('loading-overlay').style.display = 'none';
+  showView('main-view');
+});
 
 unsubscribeShelves = onSnapshot(collection(db, 'shelves'), (snapshot) => {
   shelves = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
   shelves.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
-  loadedShelves = true;
-  checkAllLoaded();
-  if (loadedBins) {
-    renderShelves(); renderOverview(); renderCheckedOut(); onSearch();
-    if (document.getElementById('detail-view').classList.contains('active') && activeBinId && activeCollection === 'shelves') renderItems();
-  }
-}, (err) => { console.error(err); setSyncStatus('error'); loadedShelves = true; checkAllLoaded(); });
+  renderShelves();
+  renderOverview();
+  renderCheckedOut();
+  onSearch();
+  if (document.getElementById('detail-view').classList.contains('active') && activeBinId && activeCollection === 'shelves') renderItems();
+}, (err) => {
+  console.error(err);
+  setSyncStatus('error');
+});
 
 // ─── SYNC STATUS ──────────────────────────────────────────────
 function setSyncStatus(state) {
@@ -1218,7 +1213,7 @@ window.showDetail = function(id, col) {
   document.getElementById('detail-bin-number').textContent = binIdx >= 0 ? '#' + (binIdx + 1) : '';
   document.getElementById('detail-bin-name').textContent = bin.name;
   document.getElementById('qr-section-title').textContent = typeLabel + ' QR Code';
-  document.getElementById('qr-hint-text').textContent = 'Scan to view this ' + typeLabel.toLowerCase() + ''s contents on any device.';
+  document.getElementById('qr-hint-text').textContent = 'Scan to view this ' + typeLabel.toLowerCase() + "'s contents on any device.";
   document.getElementById('rename-modal-title').textContent = 'Rename ' + typeLabel;
   ['new-item-name','new-item-players','new-item-playtime'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('new-item-genre').value = '';
