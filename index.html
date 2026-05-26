@@ -237,22 +237,9 @@ select option{background:var(--surface);color:var(--text);}
 .dup-warning{background:#1a2a1a;border:1px solid var(--accent);border-radius:4px;padding:8px 12px;font-size:0.75rem;color:var(--accent);line-height:1.5;margin-bottom:8px;display:none;}
 .dup-warning.visible{display:block;}
 
-/* BGG */
-.bgg-search-wrap{position:relative;}
-.bgg-dropdown{position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--accent);border-top:none;border-radius:0 0 6px 6px;z-index:50;max-height:280px;overflow-y:auto;display:none;box-shadow:0 8px 24px rgba(0,0,0,0.4);}
-.bgg-dropdown.open{display:block;}
-.bgg-result{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:3px;transition:background 0.12s;}
-.bgg-result:last-child{border-bottom:none;}
-.bgg-result:hover{background:var(--surface2);}
-.bgg-result-name{font-size:0.85rem;color:var(--text);}
-.bgg-result-meta{font-size:0.7rem;color:var(--muted);}
-.bgg-result-year{color:var(--accent);}
-.bgg-searching{padding:14px;font-size:0.75rem;color:var(--muted);text-align:center;}
+/* BGG link badge */
 .bgg-link{display:inline-flex;align-items:center;text-decoration:none;color:var(--accent);font-size:0.75rem;padding:1px 5px;border:1px solid var(--accent);border-radius:3px;margin-left:5px;opacity:0.7;transition:opacity 0.15s;vertical-align:middle;}
 .bgg-link:hover{opacity:1;}
-.bgg-lookup-btn{background:none!important;border:1px solid var(--border)!important;color:var(--muted)!important;cursor:pointer;font-size:0.65rem;padding:3px 8px;border-radius:3px;font-family:'DM Mono',monospace;letter-spacing:0.04em;transition:all 0.15s!important;white-space:nowrap;}
-.bgg-lookup-btn:hover{border-color:var(--accent)!important;color:var(--accent)!important;transform:none!important;}
-
 /* MOBILE */
 @media(max-width:640px){
   header{flex-direction:column;align-items:stretch;gap:8px;padding:14px 16px 0;}
@@ -408,10 +395,9 @@ select option{background:var(--surface);color:var(--text);}
       <div class="add-item-form-title">Add Game</div>
       <div id="dup-warning" class="dup-warning"></div>
       <div class="add-item-grid">
-        <div class="field-group bgg-search-wrap">
-          <span class="field-label">Game Name <span style="color:var(--muted);font-weight:400">— type to search BGG</span></span>
-          <input type="text" id="new-item-name" placeholder="e.g. Catan" oninput="onBggInput(this.value)" autocomplete="off" />
-          <div class="bgg-dropdown" id="bgg-dropdown"></div>
+        <div class="field-group">
+          <span class="field-label">Game Name</span>
+          <input type="text" id="new-item-name" placeholder="e.g. Catan" oninput="checkDuplicate()" autocomplete="off" />
         </div>
         <div class="field-group"><span class="field-label">Players</span><input type="text" id="new-item-players" placeholder="2–4" /></div>
         <div class="field-group"><span class="field-label">Playtime</span><input type="text" id="new-item-playtime" placeholder="60 min" /></div>
@@ -469,13 +455,7 @@ select option{background:var(--surface);color:var(--text);}
 <div class="modal-overlay" id="edit-modal" onclick="if(event.target===this)closeEditModal()">
   <div class="modal" style="width:400px">
     <h3>Edit Game</h3>
-    <div class="field-group" style="margin-bottom:10px">
-      <span class="field-label">Game Name</span>
-      <div style="display:flex;gap:6px;align-items:center">
-        <input type="text" id="edit-item-name" style="flex:1" />
-        <button class="bgg-lookup-btn" onclick="openBggLookupModal()">🎲 BGG Lookup</button>
-      </div>
-    </div>
+    <div class="field-group" style="margin-bottom:10px"><span class="field-label">Game Name</span><input type="text" id="edit-item-name" /></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
       <div class="field-group"><span class="field-label">Players</span><input type="text" id="edit-item-players" /></div>
       <div class="field-group"><span class="field-label">Playtime</span><input type="text" id="edit-item-playtime" /></div>
@@ -510,20 +490,6 @@ select option{background:var(--surface);color:var(--text);}
       <select id="move-destination"></select>
     </div>
     <div class="modal-actions"><button class="ghost" onclick="closeMoveModal()">Cancel</button><button onclick="confirmMove()">Move</button></div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="bgg-lookup-modal" onclick="if(event.target===this)closeBggLookupModal()">
-  <div class="modal" style="width:460px">
-    <h3>BGG Lookup</h3>
-    <div class="field-group" style="margin-bottom:8px">
-      <span class="field-label">Search BoardGameGeek</span>
-      <input type="text" id="bgg-lookup-input" placeholder="Game name…" oninput="onBggLookupInput(this.value)" autocomplete="off" />
-    </div>
-    <div id="bgg-lookup-results" style="border:1px solid var(--border);border-radius:6px;overflow:hidden;max-height:300px;overflow-y:auto;margin-bottom:4px">
-      <div class="bgg-searching">Type a game name to search…</div>
-    </div>
-    <div class="modal-actions"><button class="ghost" onclick="closeBggLookupModal()">Cancel</button></div>
   </div>
 </div>
 
@@ -788,16 +754,13 @@ window.confirmRename = async function() {
 window.addGame = async function() {
   const name = document.getElementById('new-item-name').value.trim(); if(!name) return;
   const bin = activeList().find(b=>b.id===activeBinId); if(!bin) return;
-  const bgg = window._pendingBgg || {};
-  const game = {id:uid(),name,players:document.getElementById('new-item-players').value.trim(),playtime:document.getElementById('new-item-playtime').value.trim(),genre:document.getElementById('new-item-genre').value,condition:document.getElementById('new-item-condition').value,checkedOut:null,addedAt:Date.now(),bggLink:bgg.bggLink||'',bggId:bgg.bggId||''};
-  window._pendingBgg = null;
+  const game = {id:uid(),name,players:document.getElementById('new-item-players').value.trim(),playtime:document.getElementById('new-item-playtime').value.trim(),genre:document.getElementById('new-item-genre').value,condition:document.getElementById('new-item-condition').value,checkedOut:null,addedAt:Date.now(),bggLink:'',bggId:''};
   setSyncStatus('syncing');
   await updateDoc(doc(collection(db,activeCollection),activeBinId),{items:[...(bin.items||[]),game]});
   setSyncStatus('synced');
   ['new-item-name','new-item-players','new-item-playtime'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('new-item-genre').value=''; document.getElementById('new-item-condition').value='';
   document.getElementById('dup-warning').classList.remove('visible');
-  document.getElementById('bgg-dropdown').classList.remove('open');
 };
 
 function renderItems() {
@@ -1207,166 +1170,6 @@ window.saveRenumber=async function(){
   for(let i=0;i<rnBins.length;i++)await updateDoc(doc(collection(db,'bins'),rnBins[i]),{createdAt:now+i});
   for(let i=0;i<rnShelves.length;i++)await updateDoc(doc(collection(db,'shelves'),rnShelves[i]),{createdAt:now+i});
   setSyncStatus('synced');closeRenumberModal();
-};
-
-// ── BGG API ──────────────────────────────────────────────────
-// Uses BGG's internal JSON search (same endpoint their site uses — CORS-friendly)
-const BGG_PROXY = 'https://bgg-proxy-2.gsbenton027.workers.dev';
-let bggTimer = null, bggLookupTimer = null;
-
-async function bggSearch(query) {
-  if (!query || query.length < 2) return [];
-  try {
-    // Try BGG's internal JSON autocomplete API first (no proxy needed)
-    const res = await fetch(
-      'https://boardgamegeek.com/search/boardgames?q=' + encodeURIComponent(query) + '&nosession=1&ajax=1',
-      { headers: { 'Accept': 'application/json' } }
-    );
-    if (res.ok) {
-      const json = await res.json();
-      const items = json.items || [];
-      return items.slice(0, 8).map(item => ({
-        id: String(item.objectid),
-        name: item.name,
-        year: item.yearpublished ? String(item.yearpublished) : ''
-      })).filter(r => r.name);
-    }
-  } catch(e) { /* fall through to proxy */ }
-
-  // Fallback: use proxy with XML API
-  try {
-    const proxyUrl = BGG_PROXY + '?url=' + encodeURIComponent('https://boardgamegeek.com/xmlapi2/search?query=' + encodeURIComponent(query) + '&type=boardgame');
-    const res = await fetch(proxyUrl);
-    const text = await res.text();
-    const xml = new DOMParser().parseFromString(text, 'text/xml');
-    return [...xml.querySelectorAll('item')].map(el => ({
-      id: el.getAttribute('id'),
-      name: el.querySelector('name')?.getAttribute('value') || '',
-      year: el.querySelector('yearpublished')?.getAttribute('value') || ''
-    })).filter(r => r.name)
-      .sort((a,b) => (parseInt(b.year)||0) - (parseInt(a.year)||0))
-      .slice(0, 8);
-  } catch(e) { console.error('BGG search error:', e); return []; }
-}
-
-async function bggDetails(id) {
-  // Try direct BGG JSON API first
-  try {
-    const res = await fetch(
-      'https://boardgamegeek.com/api/geekitems?objecttype=thing&objectid=' + id + '&nosession=1&ajax=1',
-      { headers: { 'Accept': 'application/json' } }
-    );
-    if (res.ok) {
-      const json = await res.json();
-      const item = json.item || json;
-      const min = item.minplayers || '';
-      const max = item.maxplayers || '';
-      const players = min && max ? (min == max ? String(min) : min + '–' + max) : (min || max || '');
-      const cats = (item.links?.boardgamecategory || []).map(c => c.name);
-      const catMap = {'Abstract Strategy':'Abstract','Party Game':'Party','Trivia':'Trivia','Word Game':'Word','Cooperative':'Cooperative','Deck Building':'Deck Building','Worker Placement':'Worker Placement','Strategy':'Strategy','Role Playing':'RPG'};
-      let genre = '';
-      for (const cat of cats) {
-        for (const [k,v] of Object.entries(catMap)) { if (cat.includes(k)) { genre=v; break; } }
-        if (genre) break;
-      }
-      return { name: item.name, players, genre, bggLink: 'https://boardgamegeek.com/boardgame/' + id, bggId: String(id) };
-    }
-  } catch(e) { /* fall through */ }
-
-  // Fallback: proxy XML API
-  try {
-    const proxyUrl = BGG_PROXY + '?url=' + encodeURIComponent('https://boardgamegeek.com/xmlapi2/thing?id=' + id + '&stats=1');
-    const res = await fetch(proxyUrl);
-    const text = await res.text();
-    const xml = new DOMParser().parseFromString(text, 'text/xml');
-    const item = xml.querySelector('item'); if (!item) return null;
-    const min = item.querySelector('minplayers')?.getAttribute('value') || '';
-    const max = item.querySelector('maxplayers')?.getAttribute('value') || '';
-    const players = min && max ? (min === max ? min : min + '–' + max) : (min || max || '');
-    const catMap = {'Abstract Strategy':'Abstract','Party Game':'Party','Trivia':'Trivia','Word Game':'Word','Cooperative':'Cooperative','Deck Building':'Deck Building','Worker Placement':'Worker Placement','Strategy':'Strategy','Role Playing':'RPG'};
-    let genre = '';
-    for (const cat of [...item.querySelectorAll('link[type="boardgamecategory"]')].map(l=>l.getAttribute('value'))) {
-      for (const [k,v] of Object.entries(catMap)) { if (cat.includes(k)) { genre=v; break; } }
-      if (genre) break;
-    }
-    const name = item.querySelector('name[type="primary"]')?.getAttribute('value') || '';
-    return { name, players, genre, bggLink: 'https://boardgamegeek.com/boardgame/' + id, bggId: String(id) };
-  } catch(e) { console.error('BGG details error:', e); return null; }
-}
-
-function buildResultsHtml(results, onclickFn) {
-  if (!results.length) return '<div class="bgg-searching">No results found.</div>';
-  return results.map(r =>
-    '<div class="bgg-result" onclick="' + onclickFn + '(\"' + r.id + '\")">' +
-    '<span class="bgg-result-name">' + esc(r.name) + '</span>' +
-    '<span class="bgg-result-meta">' + (r.year ? '<span class="bgg-result-year">' + r.year + '</span> · ' : '') + 'board game</span>' +
-    '</div>'
-  ).join('');
-}
-
-// ── ADD FORM SEARCH ───────────────────────────────────────────
-window.onBggInput = function(val) {
-  checkDuplicate();
-  const dd = document.getElementById('bgg-dropdown');
-  clearTimeout(bggTimer);
-  if (!val || val.length < 2) { dd.classList.remove('open'); return; }
-  dd.innerHTML = '<div class="bgg-searching">Searching…</div>';
-  dd.classList.add('open');
-  bggTimer = setTimeout(async () => {
-    const results = await bggSearch(val);
-    dd.innerHTML = buildResultsHtml(results, 'selectBggResult');
-    dd.classList.add('open');
-  }, 400);
-};
-window.selectBggResult = async function(id) {
-  const dd = document.getElementById('bgg-dropdown');
-  dd.innerHTML = '<div class="bgg-searching">Loading…</div>';
-  const d = await bggDetails(id);
-  dd.classList.remove('open');
-  if (!d) return;
-  document.getElementById('new-item-name').value = d.name;
-  if (d.players) document.getElementById('new-item-players').value = d.players;
-  if (d.genre) document.getElementById('new-item-genre').value = d.genre;
-  window._pendingBgg = { bggLink: d.bggLink, bggId: d.bggId };
-  checkDuplicate();
-};
-document.addEventListener('click', e => {
-  if (!e.target.closest('.bgg-search-wrap')) document.getElementById('bgg-dropdown').classList.remove('open');
-});
-
-// ── EDIT MODAL LOOKUP ─────────────────────────────────────────
-window.openBggLookupModal = function() {
-  const name = document.getElementById('edit-item-name').value || '';
-  document.getElementById('bgg-lookup-input').value = name;
-  document.getElementById('bgg-lookup-results').innerHTML = '<div class="bgg-searching">Type a game name to search…</div>';
-  document.getElementById('bgg-lookup-modal').classList.add('open');
-  setTimeout(() => {
-    const inp = document.getElementById('bgg-lookup-input');
-    inp.select();
-    if (name.length >= 2) onBggLookupInput(name);
-  }, 80);
-};
-window.closeBggLookupModal = function() { document.getElementById('bgg-lookup-modal').classList.remove('open'); };
-window.onBggLookupInput = function(val) {
-  const res = document.getElementById('bgg-lookup-results');
-  clearTimeout(bggLookupTimer);
-  if (!val || val.length < 2) { res.innerHTML = '<div class="bgg-searching">Type a game name to search…</div>'; return; }
-  res.innerHTML = '<div class="bgg-searching">Searching…</div>';
-  bggLookupTimer = setTimeout(async () => {
-    const results = await bggSearch(val);
-    res.innerHTML = buildResultsHtml(results, 'selectBggLookupResult');
-  }, 400);
-};
-window.selectBggLookupResult = async function(id) {
-  const res = document.getElementById('bgg-lookup-results');
-  res.innerHTML = '<div class="bgg-searching">Loading…</div>';
-  const d = await bggDetails(id);
-  if (!d) { res.innerHTML = '<div class="bgg-searching">Failed to load. Try again.</div>'; return; }
-  document.getElementById('edit-item-name').value = d.name;
-  if (d.players) document.getElementById('edit-item-players').value = d.players;
-  if (d.genre) document.getElementById('edit-item-genre').value = d.genre;
-  window._pendingBggEdit = { bggLink: d.bggLink, bggId: d.bggId };
-  closeBggLookupModal();
 };
 
 // ── KEYBOARD SHORTCUTS ───────────────────────────────────────
