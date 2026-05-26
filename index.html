@@ -412,6 +412,7 @@ select option{background:var(--surface);color:var(--text);}
         <div class="add-item-actions" style="align-self:end"><button onclick="addGame()">+ Add</button></div>
       </div>
 
+      <div class="field-group" style="margin-top:8px"><span class="field-label">BGG Link <span style="color:var(--muted);font-weight:400">(optional)</span></span><input type="url" id="new-item-bgglink" placeholder="https://boardgamegeek.com/boardgame/…" /></div>
     </div>
     <div class="table-wrap">
       <table class="items-table"><thead><tr><th>Game</th><th>Players</th><th>Time</th><th>Genre</th><th>Condition</th><th>Status</th><th></th></tr></thead>
@@ -632,6 +633,7 @@ window.showDetail = function(id, col) {
   ['new-item-name','new-item-players','new-item-playtime'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('new-item-genre').value='';
   document.getElementById('new-item-condition').value='';
+  document.getElementById('new-item-bgglink').value='';
   document.getElementById('dup-warning').classList.remove('visible');
   renderItems(); renderQR(); showView('detail-view');
 };
@@ -754,7 +756,8 @@ window.confirmRename = async function() {
 window.addGame = async function() {
   const name = document.getElementById('new-item-name').value.trim(); if(!name) return;
   const bin = activeList().find(b=>b.id===activeBinId); if(!bin) return;
-  const game = {id:uid(),name,players:document.getElementById('new-item-players').value.trim(),playtime:document.getElementById('new-item-playtime').value.trim(),genre:document.getElementById('new-item-genre').value,condition:document.getElementById('new-item-condition').value,checkedOut:null,addedAt:Date.now(),bggLink:'',bggId:''};
+  const bggLink = (document.getElementById('new-item-bgglink').value||'').trim();
+  const game = {id:uid(),name,players:document.getElementById('new-item-players').value.trim(),playtime:document.getElementById('new-item-playtime').value.trim(),genre:document.getElementById('new-item-genre').value,condition:document.getElementById('new-item-condition').value,checkedOut:null,addedAt:Date.now(),bggLink,bggId:''};
   setSyncStatus('syncing');
   await updateDoc(doc(collection(db,activeCollection),activeBinId),{items:[...(bin.items||[]),game]});
   setSyncStatus('synced');
@@ -948,7 +951,7 @@ window.closeEditModal=function(){document.getElementById('edit-modal').classList
 window.saveEditGame=async function(){
   const name=document.getElementById('edit-item-name').value.trim(); if(!name) return;
   const bin=activeList().find(b=>b.id===activeBinId); if(!bin) return;
-  const newItems=(bin.items||[]).map(g=>g.id===editingGameId?{...g,name,players:document.getElementById('edit-item-players').value.trim(),playtime:document.getElementById('edit-item-playtime').value.trim(),genre:document.getElementById('edit-item-genre').value,condition:document.getElementById('edit-item-condition').value}:g);
+  const newItems=(bin.items||[]).map(g=>g.id===editingGameId?{...g,name,players:document.getElementById('edit-item-players').value.trim(),playtime:document.getElementById('edit-item-playtime').value.trim(),genre:document.getElementById('edit-item-genre').value,condition:document.getElementById('edit-item-condition').value,bggLink:document.getElementById('edit-item-bgglink').value.trim()}:g);
   closeEditModal(); setSyncStatus('syncing');
   await updateDoc(doc(collection(db,activeCollection),activeBinId),{items:newItems});
   setSyncStatus('synced'); renderItems();
@@ -1031,7 +1034,9 @@ window.printSingleQR=function(){
   const bin=activeList().find(b=>b.id===activeBinId); if(!bin) return;
   const canvas=document.getElementById('qr-code').querySelector('canvas'); const imgSrc=canvas?canvas.toDataURL():'';
   const win=window.open('','_blank');
-  win.document.write('<!DOCTYPE html><html><head><title>QR Label<\/title><style>body{font-family:monospace;padding:20px}.label-card{border:2px solid #111;border-radius:4px;padding:8px;display:inline-flex;flex-direction:column;align-items:center;gap:4px}.label-name{font-size:0.9rem;font-weight:bold;text-align:center}<\/style><\/head><body><div class="label-card"><div class="label-name">#'+(activeList().indexOf(bin)+1)+' '+bin.name.replace(/</g,'&lt;')+'<\/div>'+(imgSrc?'<img src="'+imgSrc+'" style="width:160px;height:160px"\/>':'')+'<\/div><scr'+'ipt>window.onload=()=>window.print();<\/scr'+'ipt><\/body><\/html>');
+  const binList=activeList(); const binIdx=binList.indexOf(bin);
+  const typeLabel=activeCollection==='shelves'?(bin.shelfType==='cabinet'?'Cabinet':'Shelf'):'Bin';
+  win.document.write('<!DOCTYPE html><html><head><title>QR Label<\/title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;padding:20px}.label-card{border:2px solid #111;border-radius:6px;padding:14px;display:inline-flex;flex-direction:column;align-items:center;gap:10px}.label-name{font-size:2.2rem;font-weight:bold;text-align:center;max-width:280px;word-wrap:break-word;line-height:1.2}.label-num{font-size:1.6rem;color:#444;text-align:center}@media print{body{padding:6px}}<\/style><\/head><body><div class="label-card">'+(imgSrc?'<img src="'+imgSrc+'" style="width:180px;height:180px"\/>':'')+'<div class="label-name">'+bin.name.replace(/</g,'&lt;')+'<\/div><div class="label-num">'+typeLabel+' #'+(binIdx+1)+'<\/div><\/div><scr'+'ipt>window.onload=()=>window.print();<\/scr'+'ipt><\/body><\/html>');
   win.document.close();
 };
 let selectedQRSize=80;
@@ -1052,11 +1057,11 @@ window.printAllQR=function(qrSize){
   setTimeout(()=>{
     const cards=qrData.map(({item,num,colKey,w})=>{
       const canvas=w.querySelector('canvas'); const src=canvas?canvas.toDataURL():'';
-      const prefix=colKey==='shelf'?(item.shelfType==='cabinet'?'🗄 ':'📚 '):'📦 ';
-      return '<div class="label-card"><div class="label-name">'+prefix+'#'+num+' '+item.name.replace(/</g,'&lt;')+'<\/div>'+(src?'<img src="'+src+'" style="width:'+qrSize+'px;height:'+qrSize+'px"\/>':'')+'<\/div>';
+      const typeLabel=colKey==='shelf'?(item.shelfType==='cabinet'?'Cabinet':'Shelf'):'Bin';
+      return '<div class="label-card">'+(src?'<img src="'+src+'" style="width:'+qrSize+'px;height:'+qrSize+'px"\/>' :'')+'<div class="label-name">'+item.name.replace(/</g,'&lt;')+'<\/div><div class="label-num">'+typeLabel+' #'+num+'<\/div><\/div>';
     }).join('');
     const win=window.open('','_blank');
-    win.document.write('<!DOCTYPE html><html><head><title>QR Labels<\/title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:monospace;background:#fff;padding:12px}.grid{display:flex;flex-wrap:wrap;gap:10px}.label-card{border:2px solid #111;border-radius:4px;padding:6px;display:inline-flex;flex-direction:column;align-items:center;gap:4px;break-inside:avoid;page-break-inside:avoid;width:fit-content}.label-name{font-size:0.85rem;font-weight:bold;text-align:center}@media print{body{padding:6px}}<\/style><\/head><body><div class="grid">'+cards+'<\/div><scr'+'ipt>window.onload=()=>window.print();<\/scr'+'ipt><\/body><\/html>');
+    win.document.write('<!DOCTYPE html><html><head><title>QR Labels<\/title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:monospace;background:#fff;padding:12px}.grid{display:flex;flex-wrap:wrap;gap:10px}.label-card{border:2px solid #111;border-radius:6px;padding:10px;display:inline-flex;flex-direction:column;align-items:center;gap:6px;break-inside:avoid;page-break-inside:avoid;width:fit-content}.label-name{font-size:2.2rem;font-weight:bold;text-align:center;max-width:280px;word-wrap:break-word;line-height:1.2}.label-num{font-size:1.6rem;color:#444;text-align:center}@media print{body{padding:6px}}<\/style><\/head><body><div class="grid">'+cards+'<\/div><scr'+'ipt>window.onload=()=>window.print();<\/scr'+'ipt><\/body><\/html>');
     win.document.close();document.body.removeChild(off);
   },300);
 };
