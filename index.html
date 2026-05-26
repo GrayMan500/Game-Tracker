@@ -762,7 +762,7 @@ window.addGame = async function() {
   await updateDoc(doc(collection(db,activeCollection),activeBinId),{items:[...(bin.items||[]),game]});
   setSyncStatus('synced');
   ['new-item-name','new-item-players','new-item-playtime'].forEach(i=>document.getElementById(i).value='');
-  document.getElementById('new-item-genre').value=''; document.getElementById('new-item-condition').value='';
+  document.getElementById('new-item-genre').value=''; document.getElementById('new-item-condition').value=''; document.getElementById('new-item-bgglink').value='';
   document.getElementById('dup-warning').classList.remove('visible');
 };
 
@@ -1184,6 +1184,8 @@ document.getElementById('search-input').addEventListener('keydown',e=>{if(e.key=
 document.getElementById('rename-input').addEventListener('keydown',e=>{if(e.key==='Enter')confirmRename();if(e.key==='Escape')closeRenameModal();});
 document.getElementById('edit-item-name').addEventListener('keydown',e=>{if(e.key==='Enter')saveEditGame();if(e.key==='Escape')closeEditModal();});
 document.getElementById('checkout-who').addEventListener('keydown',e=>{if(e.key==='Enter')confirmCheckout();if(e.key==='Escape')closeCheckoutModal();});
+document.getElementById('new-item-name').addEventListener('keydown',e=>{if(e.key==='Enter')addGame();});
+document.getElementById('new-item-bgglink').addEventListener('keydown',e=>{if(e.key==='Enter')addGame();});
 document.getElementById('games-sort-field').addEventListener('change',()=>{sortField=document.getElementById('games-sort-field').value;updateSortDirBtn();renderGamesTab();});
 
 // ── INIT ─────────────────────────────────────────────────────
