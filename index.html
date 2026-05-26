@@ -1210,18 +1210,34 @@ window.saveRenumber=async function(){
 };
 
 // ── BGG API ──────────────────────────────────────────────────
-const BGG_PROXY = 'https://bgg-proxy.gsbenton027.workers.dev';
+// Uses BGG's internal JSON search (same endpoint their site uses — CORS-friendly)
+const BGG_PROXY = 'https://bgg-proxy-2.gsbenton027.workers.dev';
 let bggTimer = null, bggLookupTimer = null;
-
-async function bggFetch(path) {
-  const res = await fetch(BGG_PROXY + '?url=' + encodeURIComponent('https://boardgamegeek.com/xmlapi2' + path));
-  return await res.text();
-}
 
 async function bggSearch(query) {
   if (!query || query.length < 2) return [];
   try {
-    const text = await bggFetch('/search?query=' + encodeURIComponent(query) + '&type=boardgame');
+    // Try BGG's internal JSON autocomplete API first (no proxy needed)
+    const res = await fetch(
+      'https://boardgamegeek.com/search/boardgames?q=' + encodeURIComponent(query) + '&nosession=1&ajax=1',
+      { headers: { 'Accept': 'application/json' } }
+    );
+    if (res.ok) {
+      const json = await res.json();
+      const items = json.items || [];
+      return items.slice(0, 8).map(item => ({
+        id: String(item.objectid),
+        name: item.name,
+        year: item.yearpublished ? String(item.yearpublished) : ''
+      })).filter(r => r.name);
+    }
+  } catch(e) { /* fall through to proxy */ }
+
+  // Fallback: use proxy with XML API
+  try {
+    const proxyUrl = BGG_PROXY + '?url=' + encodeURIComponent('https://boardgamegeek.com/xmlapi2/search?query=' + encodeURIComponent(query) + '&type=boardgame');
+    const res = await fetch(proxyUrl);
+    const text = await res.text();
     const xml = new DOMParser().parseFromString(text, 'text/xml');
     return [...xml.querySelectorAll('item')].map(el => ({
       id: el.getAttribute('id'),
@@ -1234,8 +1250,34 @@ async function bggSearch(query) {
 }
 
 async function bggDetails(id) {
+  // Try direct BGG JSON API first
   try {
-    const text = await bggFetch('/thing?id=' + id + '&stats=1');
+    const res = await fetch(
+      'https://boardgamegeek.com/api/geekitems?objecttype=thing&objectid=' + id + '&nosession=1&ajax=1',
+      { headers: { 'Accept': 'application/json' } }
+    );
+    if (res.ok) {
+      const json = await res.json();
+      const item = json.item || json;
+      const min = item.minplayers || '';
+      const max = item.maxplayers || '';
+      const players = min && max ? (min == max ? String(min) : min + '–' + max) : (min || max || '');
+      const cats = (item.links?.boardgamecategory || []).map(c => c.name);
+      const catMap = {'Abstract Strategy':'Abstract','Party Game':'Party','Trivia':'Trivia','Word Game':'Word','Cooperative':'Cooperative','Deck Building':'Deck Building','Worker Placement':'Worker Placement','Strategy':'Strategy','Role Playing':'RPG'};
+      let genre = '';
+      for (const cat of cats) {
+        for (const [k,v] of Object.entries(catMap)) { if (cat.includes(k)) { genre=v; break; } }
+        if (genre) break;
+      }
+      return { name: item.name, players, genre, bggLink: 'https://boardgamegeek.com/boardgame/' + id, bggId: String(id) };
+    }
+  } catch(e) { /* fall through */ }
+
+  // Fallback: proxy XML API
+  try {
+    const proxyUrl = BGG_PROXY + '?url=' + encodeURIComponent('https://boardgamegeek.com/xmlapi2/thing?id=' + id + '&stats=1');
+    const res = await fetch(proxyUrl);
+    const text = await res.text();
     const xml = new DOMParser().parseFromString(text, 'text/xml');
     const item = xml.querySelector('item'); if (!item) return null;
     const min = item.querySelector('minplayers')?.getAttribute('value') || '';
@@ -1248,8 +1290,7 @@ async function bggDetails(id) {
       if (genre) break;
     }
     const name = item.querySelector('name[type="primary"]')?.getAttribute('value') || '';
-    const bggLink = 'https://boardgamegeek.com/boardgame/' + id;
-    return { name, players, genre, bggLink, bggId: id };
+    return { name, players, genre, bggLink: 'https://boardgamegeek.com/boardgame/' + id, bggId: String(id) };
   } catch(e) { console.error('BGG details error:', e); return null; }
 }
 
