@@ -1207,16 +1207,22 @@ window.saveRenumber=async function(){
 };
 
 // ── BGG API ──────────────────────────────────────────────────
-const BGG_PROXY = 'https://boardgamegeek.com/xmlapi2';
+const BGG_BASE = 'https://boardgamegeek.com/xmlapi2';
+const CORS_PROXY = 'https://api.allorigins.win/get?url=';
 let bggDebounceTimer = null;
 let bggLookupDebounceTimer = null;
+
+async function bggFetch(bggUrl) {
+  const res = await fetch(CORS_PROXY + encodeURIComponent(bggUrl));
+  const json = await res.json();
+  return json.contents; // allorigins returns { contents: "<xml>..." }
+}
 
 async function bggSearch(query) {
   if (!query || query.length < 2) return [];
   try {
-    const url = `${BGG_PROXY}/search?query=${encodeURIComponent(query)}&type=boardgame&exact=0`;
-    const res = await fetch(url);
-    const text = await res.text();
+    const url = `${BGG_BASE}/search?query=${encodeURIComponent(query)}&type=boardgame&exact=0`;
+    const text = await bggFetch(url);
     const parser = new DOMParser();
     const xml = parser.parseFromString(text, 'text/xml');
     const items = [...xml.querySelectorAll('item')];
@@ -1233,11 +1239,10 @@ async function bggSearch(query) {
 
 async function bggGetDetails(id) {
   try {
-    const url = `${BGG_PROXY}/thing?id=${id}&stats=1`;
-    const res = await fetch(url);
-    const text = await res.text();
+    const url = `${BGG_BASE}/thing?id=${id}&stats=1`;
+    const text = await bggFetch(url);
     const parser = new DOMParser();
-    const xml = parser.parseFromString(text, 'text/xml');
+    const xml = parser.parseFromString(text || '', 'text/xml');
     const item = xml.querySelector('item');
     if (!item) return null;
 
