@@ -1215,7 +1215,7 @@ let bggTimer = null, bggLookupTimer = null;
 
 async function bggFetch(path) {
   const res = await fetch(BGG_PROXY + '?url=' + encodeURIComponent('https://boardgamegeek.com/xmlapi2' + path));
-  return res.text();
+  return await res.text();
 }
 
 async function bggSearch(query) {
@@ -1256,7 +1256,7 @@ async function bggDetails(id) {
 function buildResultsHtml(results, onclickFn) {
   if (!results.length) return '<div class="bgg-searching">No results found.</div>';
   return results.map(r =>
-    '<div class="bgg-result" onclick="' + onclickFn + '('' + r.id + '')">' +
+    '<div class="bgg-result" onclick="' + onclickFn + '(\"' + r.id + '\")">' +
     '<span class="bgg-result-name">' + esc(r.name) + '</span>' +
     '<span class="bgg-result-meta">' + (r.year ? '<span class="bgg-result-year">' + r.year + '</span> · ' : '') + 'board game</span>' +
     '</div>'
@@ -1274,7 +1274,6 @@ window.onBggInput = function(val) {
   bggTimer = setTimeout(async () => {
     const results = await bggSearch(val);
     dd.innerHTML = buildResultsHtml(results, 'selectBggResult');
-    if (!results.length) return;
     dd.classList.add('open');
   }, 400);
 };
