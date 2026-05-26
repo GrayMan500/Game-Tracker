@@ -1208,14 +1208,13 @@ window.saveRenumber=async function(){
 
 // ── BGG API ──────────────────────────────────────────────────
 const BGG_BASE = 'https://boardgamegeek.com/xmlapi2';
-const CORS_PROXY = 'https://api.allorigins.win/get?url=';
+const CORS_PROXY = 'https://corsproxy.io/?';
 let bggDebounceTimer = null;
 let bggLookupDebounceTimer = null;
 
 async function bggFetch(bggUrl) {
   const res = await fetch(CORS_PROXY + encodeURIComponent(bggUrl));
-  const json = await res.json();
-  return json.contents; // allorigins returns { contents: "<xml>..." }
+  return await res.text(); // corsproxy.io returns raw text directly
 }
 
 async function bggSearch(query) {
