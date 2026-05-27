@@ -237,6 +237,16 @@ select option{background:var(--surface);color:var(--text);}
 .dup-warning{background:#1a2a1a;border:1px solid var(--accent);border-radius:4px;padding:8px 12px;font-size:0.75rem;color:var(--accent);line-height:1.5;margin-bottom:8px;display:none;}
 .dup-warning.visible{display:block;}
 
+/* PRICING */
+.price-cell{font-size:0.78rem;color:var(--text);white-space:nowrap;}
+.price-cell.pending{color:var(--muted);font-style:italic;}
+.price-cell.error{color:var(--danger);font-size:0.7rem;}
+.price-fetching{color:var(--accent);font-size:0.7rem;white-space:nowrap;}
+.price-progress{padding:8px 24px;font-size:0.75rem;color:var(--muted);display:flex;align-items:center;gap:10px;}
+.price-progress-bar{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden;}
+.price-progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width 0.3s;}
+.price-last-fetched{font-size:0.65rem;color:var(--muted);letter-spacing:0.06em;}
+
 /* BGG link badge */
 .bgg-link{display:inline-flex;align-items:center;text-decoration:none;color:var(--accent);font-size:0.75rem;padding:1px 5px;border:1px solid var(--accent);border-radius:3px;margin-left:5px;opacity:0.7;transition:opacity 0.15s;vertical-align:middle;}
 .bgg-link:hover{opacity:1;}
@@ -335,30 +345,31 @@ select option{background:var(--surface);color:var(--text);}
   <!-- ALL GAMES TAB -->
   <div id="tab-content-games" style="display:none">
     <div class="games-tab-bar">
-      <input type="text" id="games-filter" placeholder="Filter games…" oninput="renderGamesTab()" />
+      <button onclick="fetchAllPrices()" id="fetch-prices-btn" style="flex-shrink:0">💰 Find Recent Pricing</button>
+      <button onclick="cancelPriceFetch()" id="cancel-prices-btn" class="ghost" style="flex-shrink:0;display:none">✕ Cancel</button>
       <div class="sort-controls">
         <select id="games-sort-field" onchange="renderGamesTab()">
           <option value="name">Name</option>
-          <option value="genre">Genre</option>
-          <option value="condition">Condition</option>
-          <option value="players">Players</option>
           <option value="location">Location</option>
           <option value="status">Status</option>
+          <option value="avgListing">Avg Listing Price</option>
         </select>
         <button class="ghost sort-btn" id="sort-dir-btn" onclick="toggleSortDir()">↑ A–Z</button>
+        <input type="text" id="games-filter" placeholder="Filter…" oninput="renderGamesTab()" style="width:120px;padding:7px 10px;font-size:0.78rem" />
       </div>
+    </div>
+    <div id="price-progress" style="display:none" class="price-progress">
+      <span id="price-progress-text">Fetching prices…</span>
+      <div class="price-progress-bar"><div class="price-progress-fill" id="price-progress-fill" style="width:0%"></div></div>
     </div>
     <div class="games-flat-table">
       <table class="items-table" id="games-flat-table">
         <thead>
           <tr>
             <th class="sortable" onclick="setSort('name')">Game <span class="sort-arrow" id="arrow-name"></span></th>
-            <th class="sortable" onclick="setSort('players')">Players <span class="sort-arrow" id="arrow-players"></span></th>
-            <th>Time</th>
-            <th class="sortable" onclick="setSort('genre')">Genre <span class="sort-arrow" id="arrow-genre"></span></th>
-            <th class="sortable" onclick="setSort('condition')">Condition <span class="sort-arrow" id="arrow-condition"></span></th>
             <th class="sortable" onclick="setSort('location')">Location <span class="sort-arrow" id="arrow-location"></span></th>
             <th class="sortable" onclick="setSort('status')">Status <span class="sort-arrow" id="arrow-status"></span></th>
+            <th class="sortable" onclick="setSort('avgListing')">Avg Listing <span class="sort-arrow" id="arrow-avgListing"></span></th>
             <th></th>
           </tr>
         </thead>
@@ -770,7 +781,7 @@ function renderItems() {
   const bin = activeList().find(b=>b.id===activeBinId); if(!bin) return;
   const tbody = document.getElementById('items-tbody'); const col = activeCollection;
   const games = bin.items||[];
-  if(!games.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px;font-size:0.8rem">No games here yet. Add one above.</td></tr>'; return; }
+  if(!games.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:32px;font-size:0.8rem">No games here yet. Add one above.</td></tr>'; return; }
   tbody.innerHTML = games.map(g => {
     const condClass = g.condition?' '+g.condition:''; const condLabel = g.condition?g.condition.charAt(0).toUpperCase()+g.condition.slice(1):'—';
     const coStatus = g.checkedOut ? '<span class="co-badge">📤 '+esc(g.checkedOut.who)+'</span>' : '<span class="in-badge">✓ In</span>';
@@ -806,34 +817,37 @@ function updateSortDirBtn() {
   const th = document.querySelector('[onclick="setSort(\''+sortField+'\')"]');
   if(th) th.classList.add('sort-active');
 }
+function fmtPrice(val) {
+  if(val === null || val === undefined || val === '') return '<span class="price-cell pending">—</span>';
+  return '<span class="price-cell">$'+parseFloat(val).toFixed(2)+'</span>';
+}
+
 window.renderGamesTab = function() {
   const filter = (document.getElementById('games-filter')?.value||'').toLowerCase();
-  // sync dropdown to sortField if changed there
   const selField = document.getElementById('games-sort-field').value;
   if(selField !== sortField) { sortField=selField; updateSortDirBtn(); }
-  let games = allGames().filter(g => !filter || g.name.toLowerCase().includes(filter) || (g.genre||'').toLowerCase().includes(filter) || g.containerName.toLowerCase().includes(filter));
-  const condOrder = {mint:0,good:1,fair:2,poor:3,'':4};
+  let games = allGames().filter(g => !filter || g.name.toLowerCase().includes(filter) || g.containerName.toLowerCase().includes(filter));
   games.sort((a,b) => {
     let av='', bv='';
     if(sortField==='name'){av=a.name||'';bv=b.name||'';}
-    else if(sortField==='genre'){av=a.genre||'';bv=b.genre||'';}
-    else if(sortField==='condition'){av=condOrder[a.condition]??4;bv=condOrder[b.condition]??4;return sortDir*(av-bv);}
-    else if(sortField==='players'){av=a.players||'';bv=b.players||'';}
     else if(sortField==='location'){av=a.containerName||'';bv=b.containerName||'';}
     else if(sortField==='status'){av=a.checkedOut?1:0;bv=b.checkedOut?1:0;return sortDir*(av-bv);}
+    else if(sortField==='avgListing'){av=parseFloat(a.priceAvgListing)||0;bv=parseFloat(b.priceAvgListing)||0;return sortDir*(av-bv);}
     return sortDir*av.localeCompare(bv);
   });
   const tbody = document.getElementById('games-flat-tbody');
-  if(!games.length) { tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:32px;font-size:0.8rem">'+(filter?'No games matching "'+esc(filter)+'"':'No games logged yet.')+'</td></tr>'; return; }
+  if(!games.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:32px;font-size:0.8rem">'+(filter?'No games matching "'+esc(filter)+'"':'No games logged yet.')+'</td></tr>'; return; }
   tbody.innerHTML = games.map(g => {
-    const condClass = g.condition?' '+g.condition:''; const condLabel = g.condition?g.condition.charAt(0).toUpperCase()+g.condition.slice(1):'—';
     const coStatus = g.checkedOut ? '<span class="co-badge">📤 '+esc(g.checkedOut.who)+'</span>' : '<span class="in-badge">✓ In</span>';
     const isShelf = g.col==='shelves'; const locEmoji = isShelf?(g.shelfType==='cabinet'?'🗄':'📚'):'📦';
     const locChip = '<span class="location-chip'+(isShelf?' is-shelf':'')+'">'+locEmoji+' #'+(g.containerIdx+1)+' '+esc(g.containerName)+'</span>';
-    return '<tr class="'+(g.checkedOut?'is-checked-out:':'')+'" style="cursor:pointer" onclick="showDetail(\''+g.containerId+'\',\''+g.col+'\')">'
-      +'<td>'+esc(g.name)+(g.bggLink?'<a class="bgg-link" href="'+g.bggLink+'" target="_blank" onclick="event.stopPropagation()" title="View on BGG">BGG</a>':'')+'</td><td>'+esc(g.players||'—')+'</td><td>'+esc(g.playtime||'—')+'</td><td>'+esc(g.genre||'—')+'</td>'
-      +'<td><span class="cond-badge'+condClass+'">'+condLabel+'</span></td>'
-      +'<td>'+locChip+'</td><td>'+coStatus+'</td>'
+    const isFetching = fetchingPrices.has(g.id);
+    const avgList = isFetching ? '<span class="price-fetching">Fetching…</span>' : fmtPrice(g.priceAvgListing);
+    return '<tr class="'+(g.checkedOut?'is-checked-out':'')+'" style="cursor:pointer" onclick="showDetail(\''+g.containerId+'\',\''+g.col+'\')">'
+      +'<td>'+esc(g.name)+(g.bggLink?'<a class="bgg-link" href="'+g.bggLink+'" target="_blank" onclick="event.stopPropagation()" title="View on BGG">BGG</a>':'')+'</td>'
+      +'<td>'+locChip+'</td>'
+      +'<td>'+coStatus+'</td>'
+      +'<td>'+avgList+'</td>'
       +'<td onclick="event.stopPropagation()" style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">'
         +'<button class="move-btn" onclick="openMoveModal(\''+g.containerId+'\',\''+g.id+'\',\''+g.col+'\')">⇄ Move</button>'
         +'<button class="del-btn" onclick="deleteGame(\''+g.containerId+'\',\''+g.id+'\',\''+g.col+'\')">✕</button>'
@@ -1175,6 +1189,178 @@ window.saveRenumber=async function(){
   for(let i=0;i<rnBins.length;i++)await updateDoc(doc(collection(db,'bins'),rnBins[i]),{createdAt:now+i});
   for(let i=0;i<rnShelves.length;i++)await updateDoc(doc(collection(db,'shelves'),rnShelves[i]),{createdAt:now+i});
   setSyncStatus('synced');closeRenumberModal();
+};
+
+// ── EBAY PRICING ─────────────────────────────────────────────
+const EBAY_CLIENT_ID = 'GraysonB-Inventor-PRD-718432bc3-60daba85';
+const EBAY_CLIENT_SECRET = 'PRD-18432bc3a924-28c8-4c80-9273-23d3';
+const WORKER_URL = 'https://bgg-proxy-2.gsbenton027.workers.dev';
+let ebayToken = null, ebayTokenExpiry = 0;
+
+async function getEbayToken() {
+  if (ebayToken && Date.now() < ebayTokenExpiry) return ebayToken;
+  const res = await fetch(`${WORKER_URL}?action=ebay_token&client_id=${encodeURIComponent(EBAY_CLIENT_ID)}&client_secret=${encodeURIComponent(EBAY_CLIENT_SECRET)}`);
+  if (!res.ok) throw new Error('Token fetch failed: ' + res.status);
+  const json = await res.json();
+  if (!json.access_token) throw new Error('No access token in response');
+  ebayToken = json.access_token;
+  ebayTokenExpiry = Date.now() + (json.expires_in - 60) * 1000;
+  return ebayToken;
+}
+
+function ebayAvg(arr) { return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : null; }
+function ebayExtract(items) {
+  return (items||[]).map(i => parseFloat(i.price?.value||0)).filter(p=>p>0);
+}
+
+async function ebayApiFetch(token, path) {
+  const targetUrl = 'https://api.ebay.com' + path;
+  const workerUrl = WORKER_URL + '?action=ebay_api&token=' + encodeURIComponent(token) + '&url=' + encodeURIComponent(targetUrl);
+  console.log('[eBay] Calling worker:', workerUrl.slice(0, 120));
+  const res = await fetch(workerUrl);
+  const text = await res.text();
+  console.log('[eBay] HTTP status:', res.status, '| Response preview:', text.slice(0, 300));
+  if (!res.ok) throw new Error('eBay API error ' + res.status + ': ' + text.slice(0,200));
+  try {
+    return JSON.parse(text);
+  } catch(e) {
+    throw new Error('eBay JSON parse error: ' + text.slice(0,200));
+  }
+}
+
+async function fetchEbayPrices(gameName) {
+  const token = await getEbayToken();
+
+  // Exact title in quotes, board game category, exclude accessories/lots/parts
+  const exclusions = '-sleeve -sleeves -insert -organizer -lot -replacement -piece -pieces -expansion -promo -custom -missing -incomplete -bundle -set -collection -"with expansion" -"with expansions" -"complete set" -"lot of"';
+  const q = encodeURIComponent('"' + gameName + '" ' + exclusions);
+  // 2550 = Board & Traditional Games category on eBay US
+  const baseParams = '&categoryIds=2550&marketplace_ids=EBAY_US';
+
+  let avgList = null;
+
+  try {
+    // Active fixed-price listings only — sort by best match so most relevant come first
+    const listPath = '/buy/browse/v1/item_summary/search?q=' + q
+      + '&filter=buyingOptions%3A%7BFIXED_PRICE%7D'
+      + '&sort=bestMatch&limit=50' + baseParams;
+    const listJson = await ebayApiFetch(token, listPath);
+    const items = listJson.itemSummaries || [];
+
+    // Post-filter: only keep items whose title contains the game name (case-insensitive)
+    // This catches cases where eBay returns loosely-matched results
+    const nameWords = gameName.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    const filtered = items.filter(item => {
+      const title = (item.title || '').toLowerCase();
+      return nameWords.every(word => title.includes(word));
+    });
+
+    const prices = ebayExtract(filtered.length ? filtered : items);
+    if (prices.length) {
+      // IQR-based outlier removal — works on small and large datasets
+      // Standard method: remove values outside Q1 - 1.5*IQR and Q3 + 1.5*IQR
+      const sorted = [...prices].sort((a,b) => a-b);
+      const q1     = sorted[Math.floor(sorted.length * 0.25)];
+      const q3     = sorted[Math.floor(sorted.length * 0.75)];
+      const median = sorted[Math.floor(sorted.length * 0.5)];
+      const iqr    = q3 - q1;
+      // Tighter IQR multiplier (1.0 vs standard 1.5) + hard cap at 2.5x median
+      const lo     = q1 - 1.0 * iqr;
+      const hi     = Math.min(q3 + 1.0 * iqr, median * 2.5);
+      const clean  = sorted.filter(p => p >= lo && p <= hi);
+      avgList = ebayAvg(clean.length >= 2 ? clean : sorted);
+    }
+  } catch(e) {
+    console.error('[eBay] listing fetch error for', gameName, ':', e.message);
+  }
+
+  return {
+    priceAvgListing: avgList !== null ? avgList.toFixed(2) : '',
+    priceFetchedAt:  Date.now()
+  };
+}
+
+const fetchingPrices = new Set();
+let priceFetchCancelled = false;
+
+window.cancelPriceFetch = function() {
+  priceFetchCancelled = true;
+  document.getElementById('cancel-prices-btn').style.display = 'none';
+};
+
+window.fetchAllPrices = async function() {
+  const games = allGames().filter(g => g.bggLink);
+  if (!games.length) { alert('No games with BGG links found. Add BGG links to games first.'); return; }
+
+  const btn = document.getElementById('fetch-prices-btn');
+  const prog = document.getElementById('price-progress');
+  const progText = document.getElementById('price-progress-text');
+  const progFill = document.getElementById('price-progress-fill');
+
+  priceFetchCancelled = false;
+  btn.disabled = true;
+  btn.textContent = '⏳ Fetching…';
+  document.getElementById('cancel-prices-btn').style.display = '';
+  prog.style.display = 'flex';
+
+  let done = 0;
+  const total = games.length;
+
+  // Get token once upfront
+  try {
+    await getEbayToken();
+  } catch(e) {
+    alert('Failed to connect to eBay API: ' + e.message);
+    btn.disabled = false; btn.textContent = '💰 Find Recent Pricing'; prog.style.display = 'none';
+    return;
+  }
+
+  // Process in batches of 3 to avoid rate limits
+  for (let i = 0; i < games.length; i += 3) {
+    if (priceFetchCancelled) break;
+    const batch = games.slice(i, i + 3);
+    // Mark batch as fetching
+    batch.forEach(g => fetchingPrices.add(g.id));
+    renderGamesTab();
+
+    await Promise.all(batch.map(async g => {
+      try {
+        const prices = await fetchEbayPrices(g.name);
+        // Save to Firestore
+        const freshList = g.col==='shelves' ? shelves : bins;
+        const freshContainer = freshList.find(b=>b.id===g.containerId);
+        if (freshContainer) {
+          const newItems = (freshContainer.items||[]).map(item =>
+            item.id===g.id ? {...item, ...prices} : item
+          );
+          console.log('[eBay] Saving to Firestore for', g.name, ':', prices);
+          await updateDoc(doc(collection(db, g.col), g.containerId), {items: newItems});
+          console.log('[eBay] Saved OK for', g.name);
+        } else {
+          console.warn('[eBay] freshContainer not found for', g.name, g.containerId);
+        }
+      } catch(e) {
+        console.error('Price fetch error for', g.name, e);
+      } finally {
+        fetchingPrices.delete(g.id);
+        done++;
+        progText.textContent = `Fetching prices… ${done} / ${total}`;
+        progFill.style.width = Math.round((done/total)*100) + '%';
+        renderGamesTab();
+      }
+    }));
+    // Small delay between batches
+    // Small delay between batches
+    if (i + 3 < games.length) await new Promise(r => setTimeout(r, 500));
+  }
+
+  btn.disabled = false;
+  btn.textContent = '💰 Find Recent Pricing';
+  document.getElementById('cancel-prices-btn').style.display = 'none';
+  prog.style.display = 'none';
+  fetchingPrices.clear();
+  renderGamesTab();
+  setSyncStatus('synced');
 };
 
 // ── KEYBOARD SHORTCUTS ───────────────────────────────────────
